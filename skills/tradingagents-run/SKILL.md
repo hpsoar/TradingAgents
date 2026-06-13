@@ -16,54 +16,50 @@ Run or inspect TradingAgents analysis from a ready local environment.
 
 ## Execution Process
 
-### 1. Decide whether to run or inspect
+### 1. Choose run mode
 
-- New ticker analysis: create and run a task JSON.
-- Existing result summary: read existing `result.json` or report files only; do not start a new run.
-- Batch analysis: create one task directory per symbol/date pair and run them one by one.
+- If the user asks to summarize existing output, read the provided `result.json` or report files and skip execution.
+- If the user asks for one analysis, create one task JSON.
+- If the user asks for a batch, create one task JSON per symbol/date pair and run them sequentially.
 
-### 2. Verify the environment can run an analysis
-
-Use the setup helper as the readiness gate:
+### 2. Check readiness
 
 ```bash
 python skills/tradingagents-setup/scripts/setup_tradingagents.py --check-only
 ```
 
-- If the helper reports a missing or invalid project directory, missing dependencies, failed imports, missing `.env`, missing data dirs, or install problems, use `tradingagents-setup` first.
-- If the helper reports missing credentials only, stop and report the exact env var; do not run analysis.
-- Continue only when the helper reports the fixed project directory, env file, data directories, install/import check, provider, and credential status as ready.
+- If the setup script reports setup problems, use `tradingagents-setup` and stop this run.
+- If the setup script reports missing credentials, report the exact env var and stop.
+- Continue only when check-only passes.
 
-### 3. Confirm run configuration
+### 3. Apply requested config changes
 
-- Read `.env` in `~/.tradingagents/source/TradingAgents` and the current process environment.
-- Review the effective provider, quick model, deep model, backend URL, output language, debate rounds, risk rounds, and checkpoint flag.
-- If the user requested provider/model/endpoint changes or the effective values are wrong, use `tradingagents-llm`.
-- Do not edit `.env` from this skill.
-- Stop before any real analysis unless the user has approved external data calls and LLM token usage.
+- If the user requested provider, model, endpoint, or credential-setting changes, use `tradingagents-llm` before creating the task.
+- Do not edit `.env` in this skill.
+- Before execution, confirm the user approves external data calls and LLM token usage.
 
-### 4. Validate task inputs
+### 4. Create the task JSON
 
-- Validate `symbol`, `analysis_date`, `asset_type`, `analysts`, `research_depth`, `output_language`, and `output_dir`.
-- Reject future dates.
-- Allowed analysts: `market`, `social`, `news`, `fundamentals`.
+- Required fields: `symbol`, `analysis_date`, `asset_type`, `analysts`, `research_depth`, `output_language`, `output_dir`.
+- Reject future `analysis_date` values.
+- Allow only these analysts: `market`, `social`, `news`, `fundamentals`.
 - Default `research_depth` to `1`.
-- Use an output directory that includes symbol and analysis date.
-
-### 5. Run and inspect output
-
 - Write `task.json` under the selected output directory.
-- Run:
+
+### 5. Run the task
 
 ```bash
 cd ~/.tradingagents/source/TradingAgents
 python -m extensions.run.cli run --task PATH_TO_TASK_JSON --result-file PATH_TO_RESULT_JSON
 ```
 
-- Read `result.json`.
-- Locate report artifacts from the `artifacts` field in `result.json`.
-- Report success, failure, or blocked status with the result path and next action.
+- For batches, run one task at a time and keep result files separate.
 
+### 6. Read result
+
+- Read `result.json`.
+- Use the `artifacts` field to find report files.
+- Report status, decision, result path, report paths, summary, and next action.
 ## Allowed Writes
 
 - Task JSON under the selected output directory.

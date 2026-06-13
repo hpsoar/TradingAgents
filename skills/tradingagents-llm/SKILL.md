@@ -17,35 +17,35 @@ Configure and diagnose runtime LLM settings only.
 
 ## Execution Process
 
-### 1. Read current LLM config
+### 1. Check baseline files
 
-- Read `.env` in the fixed TradingAgents project directory, `~/.tradingagents/source/TradingAgents`, and the current process environment.
-- If `~/.tradingagents/source/TradingAgents` or its `.env` file is missing, use `tradingagents-setup` first to create the project directory and baseline config.
-- Check these settings: `TRADINGAGENTS_LLM_PROVIDER`, `TRADINGAGENTS_QUICK_THINK_LLM`, `TRADINGAGENTS_DEEP_THINK_LLM`, `TRADINGAGENTS_LLM_BACKEND_URL`, `TRADINGAGENTS_TEMPERATURE`, and provider credential env vars.
+- If `~/.tradingagents/source/TradingAgents/.env` is missing, use `tradingagents-setup` first.
+- Read `.env` and the current process environment.
+
+### 2. Read current values
+
+- Read `TRADINGAGENTS_LLM_PROVIDER`, `TRADINGAGENTS_QUICK_THINK_LLM`, `TRADINGAGENTS_DEEP_THINK_LLM`, `TRADINGAGENTS_LLM_BACKEND_URL`, `TRADINGAGENTS_TEMPERATURE`, `OLLAMA_BASE_URL`, and provider credential env vars.
 - Report credential status only as `present`, `missing`, or `not required`.
 
-### 2. Validate requested config
+### 3. Validate requested values
 
-- Validate the provider against `references/provider-env.md`.
-- Use `references/model-selection.md` when choosing quick/deep models.
-- Use `references/endpoints.md` when configuring custom backend URLs, Azure/OpenRouter-style endpoints, proxies, or Ollama.
-- If the provider is unsupported, stop; do not edit source code or invent provider support.
+- Validate provider keys with `references/provider-env.md`.
+- Choose quick/deep models with `references/model-selection.md`.
+- Configure endpoint values with `references/endpoints.md`.
+- Stop if the provider is unsupported.
 
-### 3. Apply config
+### 4. Edit `.env`
 
-- Edit only `.env`.
 - Write only allowed `TRADINGAGENTS_*` settings, `OLLAMA_BASE_URL`, and empty credential placeholders.
 - Preserve unrelated `.env` entries.
 - Never write real API keys from chat.
 
-### 4. Verify config
+### 5. Verify `.env`
 
 - Re-read `.env` after editing.
-- Verify the selected provider value is present.
-- Verify quick/deep model values match the requested values or the chosen defaults.
-- Verify backend URL and temperature values match the request when provided.
-- Map the provider to its required credential env var; for `ollama`, mark key status as `not required`.
-- If the required credential is missing, stop before any provider call and report the exact env var to set.
+- Confirm changed values match the request.
+- Map provider to required credential env var; for `ollama`, use `not required`.
+- If the required credential is missing, report the env var and stop before any provider call.
 
 ## Allowed Writes
 

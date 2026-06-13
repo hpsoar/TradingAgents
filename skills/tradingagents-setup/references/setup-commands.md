@@ -1,4 +1,4 @@
-# Helper Commands
+# Setup Commands
 
 Use these commands when preparing a TradingAgents environment.
 

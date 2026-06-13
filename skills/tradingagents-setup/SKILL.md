@@ -16,45 +16,48 @@ Prepare the local TradingAgents environment without hard-coding, exposing, or in
 
 ## Execution Process
 
-### 1. Use the helper as the source of truth
+### 1. Run diagnosis
 
-- Use `python skills/tradingagents-setup/scripts/setup_tradingagents.py ...` for diagnosis, setup, and verification.
-- The helper owns cloning, checkout, `.env` creation, data directory creation, dependency installation, and import checks.
-- Default target: `~/.tradingagents/source/TradingAgents`.
-- Default clone source/ref: `git@github.com:hpsoar/TradingAgents.git` at `v1.0`.
-- Override source/ref only when the user explicitly asks, using `--repo-url`, `--ref`, `TRADINGAGENTS_REPO_URL`, or `TRADINGAGENTS_REPO_REF`.
-- Use manual shell checks only to diagnose a helper failure.
-
-### 2. Diagnose
-
-For check-only or troubleshooting requests:
+Run:
 
 ```bash
 python skills/tradingagents-setup/scripts/setup_tradingagents.py --check-only
 ```
 
-- Summarize project dir, repo action, Python, install/import status, env file, data directories, provider, and credential warning.
-- Do not describe check-only as setup; it does not install or write files.
+- If stdout contains `Repo checkout: planned` or starts a line with `Repo action: would clone `, report `blocked`: the project has not been cloned yet.
+- If stderr starts with `ERROR:`, report `blocked` with that error.
+- If stderr contains `WARNING: Missing <ENV_VAR> for provider`, report `ready except credentials` and name `<ENV_VAR>`.
+- If stderr contains any other `WARNING:`, report `blocked` with that warning.
+- If exit code is `0` and no planned clone appears in stdout, report `ready`.
+- For a check-only request, stop here.
 
-### 3. Set up
+### 2. Run setup
 
-- For setup requests, run the helper without `--check-only`.
-- Pass user-requested non-secret options through helper flags: `--provider`, `--deep-model`, `--quick-model`, `--backend-url`, `--output-language`, `--venv`, `--china-extra`, `--cache-dir`, `--results-dir`, `--memory-log`, `--repo-url`, and `--ref`.
-- If the helper exits with an error or warning, stop and report the specific blocker.
-- For later provider/model changes after setup is complete, use `tradingagents-llm`.
+For a setup request, run the setup script without `--check-only`.
 
-### 4. Verify
+```bash
+python skills/tradingagents-setup/scripts/setup_tradingagents.py
+```
 
-After setup, rerun check-only:
+- Add requested flags: `--provider`, `--deep-model`, `--quick-model`, `--backend-url`, `--output-language`, `--venv`, `--china-extra`, `--cache-dir`, `--results-dir`, `--memory-log`, `--repo-url`, or `--ref`.
+- Use the default clone target/source/ref unless the user asks otherwise: `~/.tradingagents/source/TradingAgents`, `git@github.com:hpsoar/TradingAgents.git`, `v1.0`.
+- Interpret stdout/stderr using the same rules from step 1.
+
+### 3. Verify setup
+
+Run diagnosis again:
 
 ```bash
 python skills/tradingagents-setup/scripts/setup_tradingagents.py --check-only
 ```
 
-- Report `ready` when check-only passes.
-- Report `ready except credentials` when only the provider credential is missing.
-- Report `blocked` when the helper reports any other blocker.
-- If helper output is ambiguous, use `references/verification.md` for targeted manual checks.
+- Interpret the result using the same rules from step 1.
+- Use `references/verification.md` only when the script output is unclear.
+
+### 4. Route follow-up work
+
+- For later provider/model changes, use `tradingagents-llm`.
+- For analysis runs after setup is ready, use `tradingagents-run`.
 
 ## Allowed Writes
 
@@ -65,7 +68,7 @@ Never write real API key values unless they already exist in the user's local en
 
 ## Stop Conditions
 
-- The helper reports a conflicting project directory, unsupported Python, unsupported provider, install failure, or blocked network/package operation.
+- The setup script reports a conflicting project directory, unsupported Python, unsupported provider, install failure, or blocked network/package operation.
 - Required credentials are missing after setup; report the env var and mark readiness as `ready except credentials`.
 
 ## Report Format
@@ -82,10 +85,10 @@ Key value: not displayed
 Next step:
 ```
 
-Do not paste raw helper output as the final answer.
+Do not paste raw setup script output as the final answer.
 
 ## References
 
-- Helper commands and check-only mode: `references/helper-commands.md`
+- Setup script commands and check-only mode: `references/setup-commands.md`
 - Provider keys and allowed `.env` settings: `references/provider-env.md`
 - Verification checks: `references/verification.md`
