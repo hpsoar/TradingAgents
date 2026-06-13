@@ -134,6 +134,18 @@ def get_vendor(category: str, method: str = None) -> str:
 
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
+    # Keep China market support isolated in the optional china_market package.
+    # Non-A-share symbols never import or initialize China providers.
+    try:
+        from china_market.adapters.tradingagents_adapter import (
+            should_handle as china_market_should_handle,
+            route_method as china_market_route_method,
+        )
+        if china_market_should_handle(method, *args):
+            return china_market_route_method(method, *args, **kwargs)
+    except ImportError:
+        pass
+
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
     primary_vendors = [v.strip() for v in vendor_config.split(',')]

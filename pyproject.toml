@@ -32,11 +32,18 @@ dependencies = [
     "yfinance>=1.4.1",
 ]
 
+[project.optional-dependencies]
+china = [
+    "akshare>=1.17.0",
+    "baostock>=0.8.9",
+    "tushare>=1.4.0",
+]
+
 [project.scripts]
 tradingagents = "cli.main:app"
 
 [tool.setuptools.packages.find]
-include = ["tradingagents*", "cli*"]
+include = ["tradingagents*", "cli*", "china_market*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]
