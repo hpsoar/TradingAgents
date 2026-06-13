@@ -1,6 +1,6 @@
 ---
 name: tradingagents-run
-description: Run TradingAgents financial analysis from an already configured local repository checkout, using the repo-only non-interactive task runner by default, then locate and summarize saved reports. Use when the user asks to analyze a ticker, choose analysts, set research depth/debate rounds, set report language, inspect prior outputs, or automate TradingAgents runs from an agent.
+description: Run or inspect TradingAgents analysis. Use when the user asks to analyze a ticker, adjust analysis options, batch runs, or summarize saved results.
 ---
 
 # TradingAgents Run

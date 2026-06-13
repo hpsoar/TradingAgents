@@ -1,6 +1,6 @@
 ---
 name: tradingagents-setup
-description: Set up or diagnose a local TradingAgents repository checkout by installing repo dependencies, preparing non-secret .env provider settings, creating cache/log/memory directories, and checking runtime readiness. Use when a user asks to install, configure, bootstrap, verify, or troubleshoot a TradingAgents repo for Codex, Claude, opencode, or another coding agent. Do not use this as a package-only install guide.
+description: Set up or diagnose TradingAgents. Use when the user asks to install, configure, verify, or troubleshoot the local TradingAgents environment.
 ---
 
 # TradingAgents Setup

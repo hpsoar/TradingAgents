@@ -1,6 +1,6 @@
 ---
 name: tradingagents-llm
-description: Configure and diagnose TradingAgents LLM provider settings, model choices, API keys, reasoning controls, and custom endpoints without modifying source code. Use when setting environment variables, choosing quick/deep thinker models, or troubleshooting provider credentials and backend URLs across OpenAI, Anthropic, Google, Ollama, OpenRouter, Azure, xAI, DeepSeek, Qwen, GLM, and MiniMax.
+description: Configure or diagnose TradingAgents LLM settings. Use when the user asks to choose a provider or model, set API keys, configure endpoints, or troubleshoot LLM connectivity.
 ---
 
 # TradingAgents LLM Configuration
