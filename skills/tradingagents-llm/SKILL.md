@@ -1,11 +1,11 @@
 ---
 name: tradingagents-llm
-description: Configure and extend TradingAgents LLM providers, model choices, reasoning controls, API keys, and custom endpoints. Use when setting TradingAgents LLM environment variables, choosing quick/deep thinker models, adding or debugging providers, or updating model catalogs across OpenAI, Anthropic, Google, Ollama, OpenRouter, Azure, xAI, DeepSeek, Qwen, GLM, and MiniMax.
+description: Configure and diagnose TradingAgents LLM provider settings, model choices, API keys, reasoning controls, and custom endpoints without modifying source code. Use when setting environment variables, choosing quick/deep thinker models, or troubleshooting provider credentials and backend URLs across OpenAI, Anthropic, Google, Ollama, OpenRouter, Azure, xAI, DeepSeek, Qwen, GLM, and MiniMax.
 ---
 
 # TradingAgents LLM Configuration
 
-Use this skill only for provider/model configuration, endpoint debugging, or LLM provider development. For repo installation use `tradingagents-setup`; for running an analysis use `tradingagents-run`.
+Use this skill only for runtime provider/model configuration, credential diagnosis, and endpoint debugging. For repo installation use `tradingagents-setup`; for running an analysis use `tradingagents-run`.
 
 ## Scope
 
@@ -13,9 +13,9 @@ Primary use cases:
 
 - Set repeatable LLM provider/model environment variables.
 - Debug provider keys, backend URLs, Ollama, OpenRouter, or Azure deployment settings.
-- Add or update provider support, model catalogs, validation, and provider-specific quirks.
 
 Do not use this skill as the general setup flow or as the runbook for executing ticker analysis.
+Do not use this skill to add providers, modify source code, maintain model catalogs, change validators, or update provider capabilities.
 
 ## User Intents
 
@@ -25,7 +25,6 @@ Use this skill when the user says things like:
 - "Use qwen-cn with Chinese endpoint."
 - "Configure Ollama on a remote server."
 - "Why is my provider key not being picked up?"
-- "Add a new model/provider to TradingAgents."
 
 For ordinary configuration requests, prefer updating `.env` through `tradingagents-setup` or direct non-secret edits. Do not ask the user to paste API key values into chat.
 
@@ -82,13 +81,13 @@ Use these config keys when constructing `DEFAULT_CONFIG` overrides or debugging 
 
 ## API Keys
 
-Check `tradingagents/llm_clients/api_key_env.py` before changing key names. It maps providers to env vars: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `AZURE_OPENAI_API_KEY`, `XAI_API_KEY`, `DEEPSEEK_API_KEY`, `DASHSCOPE_API_KEY`, `DASHSCOPE_CN_API_KEY`, `ZHIPU_API_KEY`, `ZHIPU_CN_API_KEY`, `MINIMAX_API_KEY`, `MINIMAX_CN_API_KEY`, and `OPENROUTER_API_KEY`. Ollama requires no API key.
+Provider key names are fixed by the application. Use these env vars: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `AZURE_OPENAI_API_KEY`, `XAI_API_KEY`, `DEEPSEEK_API_KEY`, `DASHSCOPE_API_KEY`, `DASHSCOPE_CN_API_KEY`, `ZHIPU_API_KEY`, `ZHIPU_CN_API_KEY`, `MINIMAX_API_KEY`, `MINIMAX_CN_API_KEY`, and `OPENROUTER_API_KEY`. Ollama requires no API key.
 
 Do not hardcode secrets in config or skills. Use env vars or `.env`. Regional providers use separate accounts; international and China keys are not interchangeable.
 
 ## Choosing Models
 
-Use `tradingagents/llm_clients/model_catalog.py` as the source of truth for menu choices and validation. The CLI reads the same catalog for quick and deep model selection through `cli/utils.py`.
+Use the existing TradingAgents model choices and validation. Do not modify model catalogs from this skill.
 
 - Use quick models for analyst loops where latency and cost matter.
 - Use deep models for research managers, trading plans, and final decisions where reasoning quality matters more.
@@ -98,43 +97,13 @@ Use `tradingagents/llm_clients/model_catalog.py` as the source of truth for menu
 
 Set `TRADINGAGENTS_LLM_BACKEND_URL` when routing through a proxy, gateway, self-hosted OpenAI-compatible server, or custom Azure/OpenRouter-style endpoint. For Ollama, prefer `OLLAMA_BASE_URL`; the default is `http://localhost:11434/v1`.
 
-When debugging endpoint issues, compare:
-
-- Interactive provider defaults in `cli/utils.py` (`_llm_provider_table`).
-- Runtime OpenAI-compatible defaults in `tradingagents/llm_clients/openai_client.py` (`_PROVIDER_BASE_URL`).
-- Config override behavior in `tradingagents/default_config.py`.
-
-## Adding Or Updating A Provider
-
-Make provider changes in this order:
-
-1. Add or update the provider key in `tradingagents/llm_clients/factory.py`.
-2. Add API key mapping in `tradingagents/llm_clients/api_key_env.py`, or `None` for local/no-auth providers.
-3. Add default endpoint handling in the provider client, usually `tradingagents/llm_clients/openai_client.py` for OpenAI-compatible APIs.
-4. Add quick/deep model choices in `tradingagents/llm_clients/model_catalog.py`.
-5. Add CLI provider selection or region prompts in `cli/utils.py`.
-6. Add model validation or quirks in `tradingagents/llm_clients/validators.py` and `capabilities.py` if the provider rejects standard parameters.
-7. Add focused tests under `tests/` for env overrides, key mapping, model validation, provider routing, and parameter forwarding.
-
-## Provider Quirks
-
-Use `tradingagents/llm_clients/capabilities.py` for model-specific API behavior. Keep quirks declarative there instead of scattering model-name conditionals through clients.
-
-Known patterns:
-
-- DeepSeek thinking models need reasoning-content roundtrips and may reject `tool_choice`.
-- MiniMax M2 reasoning models need `reasoning_split=True` and may reject LangChain's function-spec `tool_choice`.
-- Native OpenAI uses the Responses API and forwards `reasoning_effort`.
-- Google maps `thinking_level` differently by Gemini model family.
-- Anthropic forwards `anthropic_effort` where supported.
+When debugging endpoint issues, inspect the current configured provider, backend URL, and environment overrides. Do not modify source files to change provider defaults.
 
 ## Verification
 
-After changing LLM configuration code, run the smallest relevant tests first:
+After changing `.env` or shell environment configuration, run the smallest relevant checks:
 
 ```sh
-pytest tests/test_env_overrides.py tests/test_api_key_env.py tests/test_model_validation.py
-pytest tests/test_temperature_config.py tests/test_google_api_key.py tests/test_ollama_base_url.py
+python -m cli.main --help
+python -c "from tradingagents.default_config import DEFAULT_CONFIG; print(DEFAULT_CONFIG['llm_provider'])"
 ```
-
-For provider-specific work, also run the matching file, such as `tests/test_deepseek_reasoning.py`, `tests/test_minimax.py`, or `tests/test_anthropic_effort.py`.
