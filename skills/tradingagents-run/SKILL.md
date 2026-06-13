@@ -24,30 +24,22 @@ Run or inspect TradingAgents analysis from a ready local environment.
 
 ### 2. Verify the environment can run an analysis
 
-Run analysis commands from the fixed TradingAgents project directory: `~/.tradingagents/source/TradingAgents`.
+Use the setup helper as the readiness gate:
 
 ```bash
-cd ~/.tradingagents/source/TradingAgents
-test -d tradingagents
-test -d cli
-test -f extensions/run/cli.py
-python -c "import tradingagents; import cli; import extensions.run.cli"
-python -m extensions.run.cli --help
+python skills/tradingagents-setup/scripts/setup_tradingagents.py --check-only
 ```
 
-- If `cd ~/.tradingagents/source/TradingAgents` fails, use `tradingagents-setup` to create or clone the project there.
-- If any `test` command fails, use `tradingagents-setup` to repair the fixed project directory.
-- If the import command fails with `ModuleNotFoundError`, use `tradingagents-setup` to install dependencies.
-- If `python -m extensions.run.cli --help` fails, use `tradingagents-setup` to repair the runner environment.
+- If the helper reports a missing or invalid project directory, missing dependencies, failed imports, missing `.env`, missing data dirs, or install problems, use `tradingagents-setup` first.
+- If the helper reports missing credentials only, stop and report the exact env var; do not run analysis.
+- Continue only when the helper reports the fixed project directory, env file, data directories, install/import check, provider, and credential status as ready.
 
-### 3. Verify run configuration
+### 3. Confirm run configuration
 
-- Read `.env` and the current process environment.
-- Required setting: `TRADINGAGENTS_LLM_PROVIDER`.
-- Useful settings: `TRADINGAGENTS_QUICK_THINK_LLM`, `TRADINGAGENTS_DEEP_THINK_LLM`, `TRADINGAGENTS_LLM_BACKEND_URL`, `TRADINGAGENTS_OUTPUT_LANGUAGE`, `TRADINGAGENTS_MAX_DEBATE_ROUNDS`, `TRADINGAGENTS_MAX_RISK_ROUNDS`, `TRADINGAGENTS_CHECKPOINT_ENABLED`.
-- If provider or model settings are missing or wrong, use `tradingagents-llm`.
-- Map the provider to its credential env var using `references/provider-env.md`; `ollama` requires no API key.
-- Check only whether the credential env var is present. Never print the key value.
+- Read `.env` in `~/.tradingagents/source/TradingAgents` and the current process environment.
+- Review the effective provider, quick model, deep model, backend URL, output language, debate rounds, risk rounds, and checkpoint flag.
+- If the user requested provider/model/endpoint changes or the effective values are wrong, use `tradingagents-llm`.
+- Do not edit `.env` from this skill.
 - Stop before any real analysis unless the user has approved external data calls and LLM token usage.
 
 ### 4. Validate task inputs
@@ -116,4 +108,3 @@ Next step:
 - Task JSON and runner commands: `references/task-runner.md`
 - Interactive CLI and Python API alternatives: `references/run-modes.md`
 - Output locations and result fields: `references/outputs.md`
-- Provider credential mapping: `references/provider-env.md`

@@ -1,6 +1,12 @@
 # Verification
 
-After setup, verify exactly what setup created or changed.
+After setup, verify with the helper first:
+
+```bash
+python skills/tradingagents-setup/scripts/setup_tradingagents.py --check-only
+```
+
+Use targeted manual checks only when helper output is ambiguous or you are diagnosing a helper failure.
 
 Dependencies:
 

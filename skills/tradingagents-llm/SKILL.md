@@ -20,6 +20,7 @@ Configure and diagnose runtime LLM settings only.
 ### 1. Read current LLM config
 
 - Read `.env` in the fixed TradingAgents project directory, `~/.tradingagents/source/TradingAgents`, and the current process environment.
+- If `~/.tradingagents/source/TradingAgents` or its `.env` file is missing, use `tradingagents-setup` first to create the project directory and baseline config.
 - Check these settings: `TRADINGAGENTS_LLM_PROVIDER`, `TRADINGAGENTS_QUICK_THINK_LLM`, `TRADINGAGENTS_DEEP_THINK_LLM`, `TRADINGAGENTS_LLM_BACKEND_URL`, `TRADINGAGENTS_TEMPERATURE`, and provider credential env vars.
 - Report credential status only as `present`, `missing`, or `not required`.
 
