@@ -14,18 +14,63 @@ Run or inspect TradingAgents analysis from a ready local environment.
 - Choose analysts, research depth, report language, date, or asset type.
 - Inspect or summarize prior TradingAgents outputs.
 
-## Default Flow
+## Execution Process
 
-1. Check readiness: repo checkout, dependencies, provider selection, and credentials.
-2. Validate inputs: symbol, non-future analysis date, asset type, analyst names, and research depth.
-3. If the local TradingAgents environment is missing, incomplete, or cannot import required packages, use `tradingagents-setup` first, then return to this run flow.
-4. If provider selection is missing, use `tradingagents-llm` first, then return to this run flow.
-5. If the selected provider's credential is missing, stop and report the required env var.
-6. Confirm external API calls and LLM token usage before running a real analysis.
-7. Create a task JSON for the non-interactive runner.
-8. Run `python -m extensions.run.cli run ...`.
-9. Read `result.json` and locate generated report artifacts.
-10. Report status, decision, output paths, and a short summary.
+### 1. Decide whether to run or inspect
+
+- New ticker analysis: create and run a task JSON.
+- Existing result summary: read existing `result.json` or report files only; do not start a new run.
+- Batch analysis: create one task directory per symbol/date pair and run them one by one.
+
+### 2. Verify the environment can run an analysis
+
+Run analysis commands from the fixed TradingAgents project directory: `~/.tradingagents/source/TradingAgents`.
+
+```bash
+cd ~/.tradingagents/source/TradingAgents
+test -d tradingagents
+test -d cli
+test -f extensions/run/cli.py
+python -c "import tradingagents; import cli; import extensions.run.cli"
+python -m extensions.run.cli --help
+```
+
+- If `cd ~/.tradingagents/source/TradingAgents` fails, use `tradingagents-setup` to create or clone the project there.
+- If any `test` command fails, use `tradingagents-setup` to repair the fixed project directory.
+- If the import command fails with `ModuleNotFoundError`, use `tradingagents-setup` to install dependencies.
+- If `python -m extensions.run.cli --help` fails, use `tradingagents-setup` to repair the runner environment.
+
+### 3. Verify run configuration
+
+- Read `.env` and the current process environment.
+- Required setting: `TRADINGAGENTS_LLM_PROVIDER`.
+- Useful settings: `TRADINGAGENTS_QUICK_THINK_LLM`, `TRADINGAGENTS_DEEP_THINK_LLM`, `TRADINGAGENTS_LLM_BACKEND_URL`, `TRADINGAGENTS_OUTPUT_LANGUAGE`, `TRADINGAGENTS_MAX_DEBATE_ROUNDS`, `TRADINGAGENTS_MAX_RISK_ROUNDS`, `TRADINGAGENTS_CHECKPOINT_ENABLED`.
+- If provider or model settings are missing or wrong, use `tradingagents-llm`.
+- Map the provider to its credential env var using `references/provider-env.md`; `ollama` requires no API key.
+- Check only whether the credential env var is present. Never print the key value.
+- Stop before any real analysis unless the user has approved external data calls and LLM token usage.
+
+### 4. Validate task inputs
+
+- Validate `symbol`, `analysis_date`, `asset_type`, `analysts`, `research_depth`, `output_language`, and `output_dir`.
+- Reject future dates.
+- Allowed analysts: `market`, `social`, `news`, `fundamentals`.
+- Default `research_depth` to `1`.
+- Use an output directory that includes symbol and analysis date.
+
+### 5. Run and inspect output
+
+- Write `task.json` under the selected output directory.
+- Run:
+
+```bash
+cd ~/.tradingagents/source/TradingAgents
+python -m extensions.run.cli run --task PATH_TO_TASK_JSON --result-file PATH_TO_RESULT_JSON
+```
+
+- Read `result.json`.
+- Locate report artifacts from the `artifacts` field in `result.json`.
+- Report success, failure, or blocked status with the result path and next action.
 
 ## Allowed Writes
 
@@ -71,3 +116,4 @@ Next step:
 - Task JSON and runner commands: `references/task-runner.md`
 - Interactive CLI and Python API alternatives: `references/run-modes.md`
 - Output locations and result fields: `references/outputs.md`
+- Provider credential mapping: `references/provider-env.md`

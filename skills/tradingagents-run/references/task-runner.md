@@ -1,6 +1,6 @@
 # Task Runner
 
-The non-interactive task runner is the recommended automation path for repeatable or batch analysis. It requires a source checkout because it lives under `extensions/run`.
+The non-interactive task runner is the recommended automation path for repeatable or batch analysis. Run it from the fixed TradingAgents project directory: `~/.tradingagents/source/TradingAgents`.
 
 Example task:
 
@@ -22,6 +22,7 @@ Example task:
 Run it with:
 
 ```bash
+cd ~/.tradingagents/source/TradingAgents
 python -m extensions.run.cli run --task runs/nvda-2024-05-10/task.json --result-file runs/nvda-2024-05-10/result.json
 ```
 

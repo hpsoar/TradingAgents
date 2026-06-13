@@ -15,16 +15,36 @@ Configure and diagnose runtime LLM settings only.
 - Diagnose missing credentials or environment variables.
 - Explain which local `.env` setting controls LLM behavior.
 
-## Default Flow
+## Execution Process
 
-1. Identify the requested provider, models, endpoint, and reasoning controls.
-2. Validate the provider against the existing supported provider keys.
-3. Determine the required credential env var, unless the provider is `ollama`.
-4. Update only non-secret local configuration when requested.
-5. For missing credentials, stop and report the required env var.
-6. For endpoint issues, inspect current env settings and configured provider; do not change source defaults.
-7. Run a lightweight verification check when configuration changes.
-8. Report the effective provider/model/key status and next step.
+### 1. Read current LLM config
+
+- Read `.env` in the fixed TradingAgents project directory, `~/.tradingagents/source/TradingAgents`, and the current process environment.
+- Check these settings: `TRADINGAGENTS_LLM_PROVIDER`, `TRADINGAGENTS_QUICK_THINK_LLM`, `TRADINGAGENTS_DEEP_THINK_LLM`, `TRADINGAGENTS_LLM_BACKEND_URL`, `TRADINGAGENTS_TEMPERATURE`, and provider credential env vars.
+- Report credential status only as `present`, `missing`, or `not required`.
+
+### 2. Validate requested config
+
+- Validate the provider against `references/provider-env.md`.
+- Use `references/model-selection.md` when choosing quick/deep models.
+- Use `references/endpoints.md` when configuring custom backend URLs, Azure/OpenRouter-style endpoints, proxies, or Ollama.
+- If the provider is unsupported, stop; do not edit source code or invent provider support.
+
+### 3. Apply config
+
+- Edit only `.env`.
+- Write only allowed `TRADINGAGENTS_*` settings, `OLLAMA_BASE_URL`, and empty credential placeholders.
+- Preserve unrelated `.env` entries.
+- Never write real API keys from chat.
+
+### 4. Verify config
+
+- Re-read `.env` after editing.
+- Verify the selected provider value is present.
+- Verify quick/deep model values match the requested values or the chosen defaults.
+- Verify backend URL and temperature values match the request when provided.
+- Map the provider to its required credential env var; for `ollama`, mark key status as `not required`.
+- If the required credential is missing, stop before any provider call and report the exact env var to set.
 
 ## Allowed Writes
 
