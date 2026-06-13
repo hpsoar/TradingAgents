@@ -15,25 +15,36 @@ PROVIDER_KEYS = {
     "openai": "OPENAI_API_KEY",
     "google": "GOOGLE_API_KEY",
     "anthropic": "ANTHROPIC_API_KEY",
+    "azure": "AZURE_OPENAI_API_KEY",
     "xai": "XAI_API_KEY",
     "deepseek": "DEEPSEEK_API_KEY",
-    "dashscope": "DASHSCOPE_API_KEY",
-    "dashscope_cn": "DASHSCOPE_CN_API_KEY",
-    "zhipu": "ZHIPU_API_KEY",
-    "zhipu_cn": "ZHIPU_CN_API_KEY",
+    "qwen": "DASHSCOPE_API_KEY",
+    "qwen-cn": "DASHSCOPE_CN_API_KEY",
+    "glm": "ZHIPU_API_KEY",
+    "glm-cn": "ZHIPU_CN_API_KEY",
     "minimax": "MINIMAX_API_KEY",
-    "minimax_cn": "MINIMAX_CN_API_KEY",
+    "minimax-cn": "MINIMAX_CN_API_KEY",
     "openrouter": "OPENROUTER_API_KEY",
     "ollama": None,
 }
 
+PROVIDER_ALIASES = {
+    "dashscope": "qwen",
+    "dashscope_cn": "qwen-cn",
+    "zhipu": "glm",
+    "zhipu_cn": "glm-cn",
+    "minimax_cn": "minimax-cn",
+}
+
 DEFAULT_REPO_URL = os.environ.get("TRADINGAGENTS_REPO_URL", "git@github.com:hpsoar/TradingAgents.git")
 DEFAULT_REPO_REF = os.environ.get("TRADINGAGENTS_REPO_REF", "v1.0")
+DEFAULT_PROJECT_DIR = Path.home() / ".tradingagents" / "source" / "TradingAgents"
 
 ENV_TEMPLATE = """# LLM Providers (set the one you use)
 OPENAI_API_KEY=
 GOOGLE_API_KEY=
 ANTHROPIC_API_KEY=
+AZURE_OPENAI_API_KEY=
 XAI_API_KEY=
 DEEPSEEK_API_KEY=
 DASHSCOPE_API_KEY=
@@ -67,36 +78,18 @@ def is_repo_checkout(path: Path) -> bool:
     return (path / "pyproject.toml").exists() and (path / "tradingagents").is_dir()
 
 
-def find_repo_from_script() -> Path | None:
-    path = Path(__file__).resolve()
-    for parent in path.parents:
-        if is_repo_checkout(parent):
-            return parent
-    return None
-
-
 def ensure_repo_checkout(args: argparse.Namespace) -> tuple[Path, bool, str]:
     if args.install == "package":
-        if args.project_dir:
-            return Path(args.project_dir).expanduser().resolve(), False, "package-only project dir"
-        return (Path.cwd() / "tradingagents-run").resolve(), False, "package-only project dir"
+        return (Path.home() / ".tradingagents" / "package-run").resolve(), False, "package-only project dir"
 
-    discovered = find_repo_from_script()
-    if discovered and not args.project_dir:
-        return discovered, True, "existing repo checkout"
-
-    project_dir = (
-        Path(args.project_dir).expanduser().resolve()
-        if args.project_dir
-        else (Path.cwd() / "TradingAgents").resolve()
-    )
+    project_dir = DEFAULT_PROJECT_DIR.resolve()
     if is_repo_checkout(project_dir):
         return project_dir, True, "existing repo checkout"
 
     if project_dir.exists() and any(project_dir.iterdir()):
         raise RuntimeError(
             f"{project_dir} exists but is not a TradingAgents repo checkout. "
-            "Choose an empty --project-dir or pass --install package for package-only setup."
+            "Move it aside or make it an empty directory before running setup again."
         )
 
     repo_url = args.repo_url or DEFAULT_REPO_URL
@@ -177,7 +170,7 @@ def ensure_directories(args: argparse.Namespace, check_only: bool) -> list[Path]
 def build_updates(args: argparse.Namespace) -> dict[str, str]:
     updates: dict[str, str] = {}
     if args.provider:
-        updates["TRADINGAGENTS_LLM_PROVIDER"] = args.provider
+        updates["TRADINGAGENTS_LLM_PROVIDER"] = canonical_provider(args.provider)
     if args.deep_model:
         updates["TRADINGAGENTS_DEEP_THINK_LLM"] = args.deep_model
     if args.quick_model:
@@ -201,6 +194,7 @@ def build_updates(args: argparse.Namespace) -> dict[str, str]:
 def provider_key_status(provider: str | None, env_values: dict[str, str]) -> str | None:
     if not provider:
         return "No provider selected. Set TRADINGAGENTS_LLM_PROVIDER or pass --provider."
+    provider = canonical_provider(provider)
     key = PROVIDER_KEYS.get(provider)
     if key is None:
         if provider == "ollama":
@@ -209,6 +203,10 @@ def provider_key_status(provider: str | None, env_values: dict[str, str]) -> str
     if os.environ.get(key) or env_values.get(key):
         return None
     return f"Missing {key} for provider '{provider}'. Add it to .env or the process environment."
+
+
+def canonical_provider(provider: str) -> str:
+    return PROVIDER_ALIASES.get(provider, provider)
 
 
 def venv_python(venv_dir: Path) -> Path:
@@ -281,7 +279,8 @@ def import_status(python: Path, modules: list[str]) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Prepare and check a TradingAgents local setup.")
-    parser.add_argument("--provider", choices=sorted(PROVIDER_KEYS), help="LLM provider to configure.")
+    provider_choices = sorted(set(PROVIDER_KEYS) | set(PROVIDER_ALIASES))
+    parser.add_argument("--provider", choices=provider_choices, help="LLM provider to configure.")
     parser.add_argument("--deep-model", help="Model for deep-thinking agents.")
     parser.add_argument("--quick-model", help="Model for quick-thinking agents.")
     parser.add_argument("--backend-url", help="Provider backend URL or Ollama base URL.")
@@ -298,10 +297,6 @@ def main() -> int:
     parser.add_argument("--china-extra", action="store_true", help="Install the optional China market dependencies.")
     parser.add_argument("--venv", help="Create/use this virtual environment for installation and import checks.")
     parser.add_argument("--upgrade-pip", action="store_true", help="Upgrade pip before installing.")
-    parser.add_argument(
-        "--project-dir",
-        help="TradingAgents checkout directory. Missing empty directories are cloned for full setup.",
-    )
     parser.add_argument("--repo-url", help=f"Repository URL to clone when no checkout exists. Default: {DEFAULT_REPO_URL}")
     parser.add_argument("--ref", help=f"Branch, tag, or commit to checkout after clone. Default: {DEFAULT_REPO_REF}")
     parser.add_argument("--check-only", action="store_true", help="Report readiness without writing files.")
@@ -336,14 +331,21 @@ def main() -> int:
         return 2
     env_values = parse_env(env_path)
     provider = args.provider or env_values.get("TRADINGAGENTS_LLM_PROVIDER") or os.environ.get("TRADINGAGENTS_LLM_PROVIDER")
+    if provider:
+        provider = canonical_provider(provider)
     warning = provider_key_status(provider, env_values)
+    planned_clone = args.check_only and repo_action.startswith("would clone ")
     modules = ["tradingagents"]
     if is_repo_checkout or args.install in ("auto", "local"):
         modules.extend(["cli", "china_market"])
-    import_check = import_status(python, modules)
+    if planned_clone:
+        import_check = "not checked (repo would be cloned)"
+    else:
+        import_check = import_status(python, modules)
 
     print(f"Project dir: {project_dir}")
-    print(f"Repo checkout: {'yes' if is_repo_checkout else 'no'}")
+    repo_checkout_status = "planned" if planned_clone else ("yes" if is_repo_checkout else "no")
+    print(f"Repo checkout: {repo_checkout_status}")
     print(f"Repo action: {repo_action}")
     print(f"Python: {sys.version.split()[0]}")
     print(f"Setup Python: {python}")
@@ -357,7 +359,7 @@ def main() -> int:
     if warning:
         print(f"WARNING: {warning}", file=sys.stderr)
         return 1
-    if import_check != "ok":
+    if import_check != "ok" and not planned_clone:
         print("WARNING: required TradingAgents modules are not importable in the selected Python environment.", file=sys.stderr)
         return 1
     print("TradingAgents setup check passed.")

@@ -1,87 +1,137 @@
 ---
 name: tradingagents-setup
-description: Set up TradingAgents for local or package-based use by installing dependencies, preparing .env provider settings, creating cache/log/memory directories, and checking runtime readiness. Use when a user asks to install, configure, bootstrap, verify, or troubleshoot TradingAgents setup across Codex, Claude, opencode, or another coding agent.
+description: Set up or diagnose a local TradingAgents repository checkout by installing repo dependencies, preparing .env provider settings, creating cache/log/memory directories, and checking runtime readiness. Use when a user asks to install, configure, bootstrap, verify, or troubleshoot a TradingAgents repo for Codex, Claude, opencode, or another coding agent. Do not use this as a package-only install guide.
 ---
 
 # TradingAgents Setup
 
-Use this skill to prepare a TradingAgents checkout or installed package for a first run without hard-coding user secrets.
+Use this skill to prepare a local TradingAgents repo checkout for first run without hard-coding user secrets.
 
-## Quick Start
+## User Intents
+
+Use this skill when the user says things like:
+
+- "Set up TradingAgents."
+- "Configure TradingAgents with OpenAI/DeepSeek/Qwen/Ollama."
+- "Check whether TradingAgents can run."
+- "Fix my TradingAgents environment."
+
+The user should not need to know or type the helper command. The agent should run the helper, inspect the result, and report a concise status.
+
+## Scope
+
+Primary use case: a source checkout of this repository.
+
+Do not treat `pip install tradingagents` as a complete setup for these skills. Package-only installation is only useful when another project wants to import the published package or run the published CLI. It does not provide this repo's `extensions/run` automation entrypoint, local tests, or source-edit workflow.
+
+## Default Flow
+
+1. Detect the current state before making changes:
+   - Confirm Python is 3.10 or newer.
+   - Confirm the working directory is a TradingAgents repo checkout (`pyproject.toml` plus `tradingagents/`).
+   - Check whether `.env` exists.
+   - Check whether a virtual environment is already in use or requested.
+2. Decide the setup mode:
+   - Always use the managed checkout at `~/.tradingagents/source/TradingAgents`.
+   - If that path is already a TradingAgents repo, reuse it.
+   - If that path does not exist or is empty, clone the repo there.
+   - If that path exists, is non-empty, and is not a TradingAgents repo, stop and report the conflict.
+   - Check-only request: diagnose only; do not install dependencies or write files.
+3. Configure the repo:
+   - Copy `.env.example` to `.env` when `.env` does not exist.
+   - Do not invent, log, or commit API keys.
+   - Write only known `TRADINGAGENTS_*` overrides requested by the user.
+   - Use canonical provider keys: `openai`, `anthropic`, `google`, `azure`, `xai`, `deepseek`, `qwen`, `qwen-cn`, `glm`, `glm-cn`, `minimax`, `minimax-cn`, `openrouter`, or `ollama`.
+4. Install dependencies:
+   - Default repo install: `python -m pip install -e .`
+   - China market extras: `python -m pip install -e .[china]`
+   - Optional venv: create/use the requested venv first.
+5. Create default data paths when missing:
+   - `~/.tradingagents/cache`
+   - `~/.tradingagents/logs`
+   - `~/.tradingagents/memory`
+6. Verify readiness:
+   - Import `tradingagents` and `cli`.
+   - Check the selected provider has the required key, unless provider is `ollama`.
+   - Verify the CLI starts.
+   - Report exact missing items and next commands.
+
+## Agent Report Format
+
+Do not paste raw helper output as the final answer. Summarize it for the user:
+
+```text
+Setup status: ready | ready except credentials | blocked
+Project dir: <path>
+Python: <path/version>
+Install: <installed/skipped/check-only/would install>
+Provider: <provider or not configured>
+Required key: <env var or none>
+Key status: present | missing | not required
+Key value: not displayed
+Next step: <one concrete action>
+```
+
+If credentials are missing, tell the user which variable to add to `.env` or their shell environment. Do not ask the user to paste API keys into chat.
+
+Example:
+
+```text
+Setup status: ready except credentials
+Project dir: /path/to/TradingAgents
+Provider: qwen-cn
+Required key: DASHSCOPE_CN_API_KEY
+Key status: missing
+Key value: not displayed
+Next step: add DASHSCOPE_CN_API_KEY=... to .env, then ask me to re-check.
+```
+
+## Helper Commands
+
+These commands are implementation details for the agent.
 
 From a TradingAgents repo checkout:
+
 
 ```bash
 python skills/tradingagents-setup/scripts/setup_tradingagents.py --provider openai --deep-model gpt-5.5 --quick-model gpt-5.4-mini
 ```
 
-From no checkout:
+With an isolated venv:
 
 ```bash
-python /path/to/skills/tradingagents-setup/scripts/setup_tradingagents.py --project-dir ./TradingAgents --repo-url git@github.com:hpsoar/TradingAgents.git --ref v1.0 --provider openai
+python skills/tradingagents-setup/scripts/setup_tradingagents.py --venv .venv --provider openai
 ```
 
-For package-only installation:
+For China market dependencies:
 
 ```bash
-mkdir -p ./tradingagents-run
-python /path/to/skills/tradingagents-setup/scripts/setup_tradingagents.py --project-dir ./tradingagents-run --install package --provider openai
+python skills/tradingagents-setup/scripts/setup_tradingagents.py --china-extra --provider qwen-cn
 ```
 
-The helper is the primary setup entrypoint. Full project setup means a repo checkout plus its local package metadata, CLI package, optional China market package, `.env`, data directories, provider credentials, and readiness checks. Package-only setup is limited: it installs the published `tradingagents` package for library/CLI use, but it is not a substitute for setting up this repository.
+From outside a checkout, use the fixed managed checkout at `~/.tradingagents/source/TradingAgents`:
 
-## Setup Workflow
-
-1. Confirm Python is 3.10 or newer.
-2. Run the setup helper:
-   - In a repo checkout, it reuses that checkout and defaults to `pip install -e .`.
-   - Outside a checkout, pass `--project-dir <dir>`; full setup clones the TradingAgents repo there before installing.
-   - Use `--repo-url <url>` and `--ref <branch-or-tag-or-sha>` when the default repo/ref is not the desired source.
-   - Outside a checkout, pass both `--project-dir <dir>` and `--install package` only for package-only mode; this is not full project setup.
-   - Use `--install local`, `--install package`, or `--install skip` to override the default.
-   - Use `--china-extra` when China market dependencies are needed.
-   - Use `--venv .venv` when the user wants an isolated virtual environment.
-3. Create `.env`:
-   - Copy `.env.example` to `.env` when `.env` does not exist.
-   - If there is no repo checkout, require `--project-dir <dir>` so `.env` is not written to an accidental current directory.
-   - Do not invent, log, or commit API keys.
-   - Set one provider key for the selected LLM provider.
-4. Configure provider selection with `TRADINGAGENTS_*` variables when unattended runs should skip CLI prompts.
-5. Create default data directories:
-   - `~/.tradingagents/cache`
-   - `~/.tradingagents/logs`
-   - `~/.tradingagents/memory`
-6. Run a readiness check and report exact missing items.
-
-## Dependency Coverage
-
-For this repo, do not treat `pip install tradingagents` as enough for full setup. Full setup must ensure a TradingAgents repo checkout exists first. If the helper is not already running inside one, it should clone `--repo-url` into `--project-dir`, checkout `--ref`, then run `pip install -e .` so the repo's declared project dependencies from `pyproject.toml` are installed and these local packages are exposed:
-
-```text
-tradingagents
-cli
-china_market
+```bash
+python /path/to/skills/tradingagents-setup/scripts/setup_tradingagents.py --provider openai
 ```
 
-Base dependencies include LangChain/LangGraph provider packages, pandas, yfinance, stockstats, redis client, rich, typer, questionary, requests, tqdm, and related runtime libraries declared in `pyproject.toml`.
+## Check Only
 
-Use `--china-extra` when the user needs China market providers; it installs the optional `china` dependency group (`akshare`, `baostock`, `tushare`). External credentials and services are still separate readiness items, not Python packages:
+Use check-only for diagnosis. It must not be described as a completed setup because it skips writes and installs.
 
-```text
-LLM provider API key or Ollama endpoint
-Optional ALPHA_VANTAGE_API_KEY
-Optional running Ollama service for provider=ollama
-Optional Docker/Compose path when the user wants container setup
+```bash
+python skills/tradingagents-setup/scripts/setup_tradingagents.py --check-only
 ```
 
 ## Provider Environment
 
-Set at least one provider key that matches the intended LLM provider:
+Set one provider key that matches the intended LLM provider:
 
 ```bash
 OPENAI_API_KEY=
 GOOGLE_API_KEY=
 ANTHROPIC_API_KEY=
+AZURE_OPENAI_API_KEY=
 XAI_API_KEY=
 DEEPSEEK_API_KEY=
 DASHSCOPE_API_KEY=
@@ -93,13 +143,32 @@ MINIMAX_CN_API_KEY=
 OPENROUTER_API_KEY=
 ```
 
-Optional data keys:
+Provider key mapping:
+
+```text
+openai      -> OPENAI_API_KEY
+google      -> GOOGLE_API_KEY
+anthropic   -> ANTHROPIC_API_KEY
+azure       -> AZURE_OPENAI_API_KEY
+xai         -> XAI_API_KEY
+deepseek    -> DEEPSEEK_API_KEY
+qwen        -> DASHSCOPE_API_KEY
+qwen-cn     -> DASHSCOPE_CN_API_KEY
+glm         -> ZHIPU_API_KEY
+glm-cn      -> ZHIPU_CN_API_KEY
+minimax     -> MINIMAX_API_KEY
+minimax-cn  -> MINIMAX_CN_API_KEY
+openrouter  -> OPENROUTER_API_KEY
+ollama      -> no API key
+```
+
+Optional data key:
 
 ```bash
 ALPHA_VANTAGE_API_KEY=
 ```
 
-For Ollama, no API key is required. Use `OLLAMA_BASE_URL` only when the endpoint is not the local default `http://localhost:11434/v1`.
+For Ollama, use `OLLAMA_BASE_URL` only when the endpoint is not the local default `http://localhost:11434/v1`.
 
 ## Unattended Configuration
 
@@ -118,28 +187,6 @@ TRADINGAGENTS_TEMPERATURE=0.0
 ```
 
 Use `TRADINGAGENTS_CACHE_DIR`, `TRADINGAGENTS_RESULTS_DIR`, and `TRADINGAGENTS_MEMORY_LOG_PATH` only when the default `~/.tradingagents` layout is not appropriate.
-
-## Readiness Check
-
-Prefer the bundled helper for both setup and checks:
-
-```bash
-python skills/tradingagents-setup/scripts/setup_tradingagents.py --check-only
-```
-
-Useful options:
-
-```bash
-python skills/tradingagents-setup/scripts/setup_tradingagents.py --provider google --deep-model gemini-3.1-pro --quick-model gemini-3.1-flash
-python skills/tradingagents-setup/scripts/setup_tradingagents.py --provider ollama --backend-url http://localhost:11434/v1
-python skills/tradingagents-setup/scripts/setup_tradingagents.py --cache-dir ./data/cache --results-dir ./data/logs --memory-log ./data/memory/trading_memory.md
-python /path/to/skills/tradingagents-setup/scripts/setup_tradingagents.py --project-dir ./TradingAgents --repo-url git@github.com:hpsoar/TradingAgents.git --ref v1.0 --provider openai
-python /path/to/skills/tradingagents-setup/scripts/setup_tradingagents.py --project-dir ./tradingagents-run --install package --provider openai
-python skills/tradingagents-setup/scripts/setup_tradingagents.py --venv .venv --provider openai
-python skills/tradingagents-setup/scripts/setup_tradingagents.py --china-extra --provider dashscope_cn
-```
-
-The helper is safe to rerun. It reuses existing repo checkouts, refuses non-empty non-repo target directories, preserves existing `.env` values, creates missing directories, installs dependencies unless `--install skip` or `--check-only` is used, checks required imports, and prints warnings for missing keys.
 
 ## Verification
 

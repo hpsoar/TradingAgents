@@ -5,6 +5,47 @@ description: Configure and extend TradingAgents LLM providers, model choices, re
 
 # TradingAgents LLM Configuration
 
+Use this skill only for provider/model configuration, endpoint debugging, or LLM provider development. For repo installation use `tradingagents-setup`; for running an analysis use `tradingagents-run`.
+
+## Scope
+
+Primary use cases:
+
+- Set repeatable LLM provider/model environment variables.
+- Debug provider keys, backend URLs, Ollama, OpenRouter, or Azure deployment settings.
+- Add or update provider support, model catalogs, validation, and provider-specific quirks.
+
+Do not use this skill as the general setup flow or as the runbook for executing ticker analysis.
+
+## User Intents
+
+Use this skill when the user says things like:
+
+- "Switch TradingAgents to DeepSeek."
+- "Use qwen-cn with Chinese endpoint."
+- "Configure Ollama on a remote server."
+- "Why is my provider key not being picked up?"
+- "Add a new model/provider to TradingAgents."
+
+For ordinary configuration requests, prefer updating `.env` through `tradingagents-setup` or direct non-secret edits. Do not ask the user to paste API key values into chat.
+
+## Agent Report Format
+
+For provider/model configuration, summarize:
+
+```text
+LLM config status: updated | blocked | unchanged
+Provider:
+Quick model:
+Deep model:
+Backend URL:
+Required key:
+Key status: present | missing | not required
+Key value: not displayed
+Files changed:
+Next step:
+```
+
 ## Quick Start
 
 Use environment variables for repeatable, non-interactive runs:
