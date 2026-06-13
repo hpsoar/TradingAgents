@@ -5,7 +5,7 @@ description: Run or inspect TradingAgents analysis. Use when the user asks to an
 
 # TradingAgents Run
 
-Run or inspect TradingAgents analysis from a configured local source checkout. Setup and LLM configuration are separate skills.
+Run or inspect TradingAgents analysis from a ready local environment.
 
 ## Use When
 
@@ -14,21 +14,18 @@ Run or inspect TradingAgents analysis from a configured local source checkout. S
 - Choose analysts, research depth, report language, date, or asset type.
 - Inspect or summarize prior TradingAgents outputs.
 
-## Do Not Use When
-
-- The task requires source-code changes.
-
 ## Default Flow
 
 1. Check readiness: repo checkout, dependencies, provider selection, and credentials.
 2. Validate inputs: symbol, non-future analysis date, asset type, analyst names, and research depth.
 3. If the local TradingAgents environment is missing, incomplete, or cannot import required packages, use `tradingagents-setup` first, then return to this run flow.
-4. If provider selection or credentials are missing, stop or hand off to the appropriate skill.
-5. Confirm external API calls and LLM token usage before running a real analysis.
-6. Create a task JSON for the non-interactive runner.
-7. Run `python -m extensions.run.cli run ...`.
-8. Read `result.json` and locate generated report artifacts.
-9. Report status, decision, output paths, and a short summary.
+4. If provider selection is missing, use `tradingagents-llm` first, then return to this run flow.
+5. If the selected provider's credential is missing, stop and report the required env var.
+6. Confirm external API calls and LLM token usage before running a real analysis.
+7. Create a task JSON for the non-interactive runner.
+8. Run `python -m extensions.run.cli run ...`.
+9. Read `result.json` and locate generated report artifacts.
+10. Report status, decision, output paths, and a short summary.
 
 ## Allowed Writes
 

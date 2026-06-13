@@ -1,6 +1,6 @@
 # Helper Commands
 
-These commands are implementation details for agents preparing a TradingAgents source checkout.
+Use these commands when preparing a TradingAgents environment.
 
 From a TradingAgents repo checkout:
 

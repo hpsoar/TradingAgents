@@ -5,7 +5,7 @@ description: Configure or diagnose TradingAgents LLM settings. Use when the user
 
 # TradingAgents LLM Configuration
 
-Configure and diagnose runtime LLM settings only. This skill is not a provider development or source-code maintenance guide.
+Configure and diagnose runtime LLM settings only.
 
 ## Use When
 
@@ -14,10 +14,6 @@ Configure and diagnose runtime LLM settings only. This skill is not a provider d
 - Configure custom backend URLs, proxies, Azure/OpenRouter-style endpoints, or Ollama.
 - Diagnose missing credentials or environment variables.
 - Explain which local `.env` setting controls LLM behavior.
-
-## Do Not Use When
-
-- Adding providers, changing provider defaults, editing model catalogs, changing validators, or modifying source code.
 
 ## Default Flow
 
@@ -54,7 +50,6 @@ Do not write real secrets, source files, model catalogs, validators, provider cl
 - The required API key is missing.
 - The user asks to add or implement provider support.
 - The user provides real API key values in chat; ask them to set secrets locally instead.
-- The fix would require source-code changes.
 
 ## Report Format
 

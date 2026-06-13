@@ -5,7 +5,7 @@ description: Set up or diagnose TradingAgents. Use when the user asks to install
 
 # TradingAgents Setup
 
-Prepare a local TradingAgents source checkout for first run without hard-coding, exposing, or inventing user secrets.
+Prepare the local TradingAgents environment without hard-coding, exposing, or inventing user secrets.
 
 ## Use When
 
@@ -13,11 +13,6 @@ Prepare a local TradingAgents source checkout for first run without hard-coding,
 - Configure non-secret provider/model defaults.
 - Check whether the repo can run.
 - Diagnose missing dependencies, `.env`, data directories, or credentials.
-
-## Do Not Use When
-
-- The user wants a package-only install guide.
-- The task requires source-code changes, new providers, or model catalog maintenance.
 
 ## Default Flow
 
@@ -43,7 +38,7 @@ Never write real API key values unless they already exist in the user's local en
 
 - The managed checkout path exists, is non-empty, and is not a TradingAgents repo.
 - Python is older than 3.10.
-- Required credentials are missing after setup; report the env var instead of running analysis.
+- Required credentials are missing after setup; report the env var and mark readiness as incomplete.
 - The requested provider key is unsupported by the existing application.
 - Network or package installation is blocked and user approval is required.
 

@@ -1,6 +1,6 @@
 # Task Runner
 
-The non-interactive task runner is the recommended automation path for Codex, Claude, opencode, CI, and batch jobs. It requires a source checkout because it lives under `extensions/run`.
+The non-interactive task runner is the recommended automation path for repeatable or batch analysis. It requires a source checkout because it lives under `extensions/run`.
 
 Example task:
 
