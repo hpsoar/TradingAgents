@@ -1,6 +1,6 @@
 ---
 name: tradingagents-llm
-description: Configure or diagnose TradingAgents LLM settings. Use when the user asks to choose a provider or model, set API keys, configure endpoints, or troubleshoot LLM connectivity.
+description: Configure or diagnose TradingAgents LLM settings. Use when the user asks to choose a provider or model, configure credential environment variables, configure endpoints, or troubleshoot LLM connectivity.
 ---
 
 # TradingAgents LLM Configuration
@@ -17,10 +17,7 @@ Configure and diagnose runtime LLM settings only. This skill is not a provider d
 
 ## Do Not Use When
 
-- Installing or repairing the repository; use `tradingagents-setup`.
-- Running ticker analysis; use `tradingagents-run`.
 - Adding providers, changing provider defaults, editing model catalogs, changing validators, or modifying source code.
-- Handling real API key values in chat.
 
 ## Default Flow
 
@@ -56,6 +53,7 @@ Do not write real secrets, source files, model catalogs, validators, provider cl
 - The provider is not supported by the existing application.
 - The required API key is missing.
 - The user asks to add or implement provider support.
+- The user provides real API key values in chat; ask them to set secrets locally instead.
 - The fix would require source-code changes.
 
 ## Report Format

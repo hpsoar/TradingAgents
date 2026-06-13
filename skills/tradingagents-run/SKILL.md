@@ -16,21 +16,19 @@ Run or inspect TradingAgents analysis from a configured local source checkout. S
 
 ## Do Not Use When
 
-- The repo is not installed or dependencies are missing; use `tradingagents-setup`.
-- Provider/model/API key configuration is the main task; use `tradingagents-llm`.
-- The user has not approved external API calls and LLM token usage for a real analysis.
 - The task requires source-code changes.
 
 ## Default Flow
 
 1. Check readiness: repo checkout, dependencies, provider selection, and credentials.
 2. Validate inputs: symbol, non-future analysis date, asset type, analyst names, and research depth.
-3. If setup or credentials are missing, stop or hand off to the appropriate skill.
-4. Confirm external API calls and LLM token usage before running a real analysis.
-5. Create a task JSON for the non-interactive runner.
-6. Run `python -m extensions.run.cli run ...`.
-7. Read `result.json` and locate generated report artifacts.
-8. Report status, decision, output paths, and a short summary.
+3. If the local TradingAgents environment is missing, incomplete, or cannot import required packages, use `tradingagents-setup` first, then return to this run flow.
+4. If provider selection or credentials are missing, stop or hand off to the appropriate skill.
+5. Confirm external API calls and LLM token usage before running a real analysis.
+6. Create a task JSON for the non-interactive runner.
+7. Run `python -m extensions.run.cli run ...`.
+8. Read `result.json` and locate generated report artifacts.
+9. Report status, decision, output paths, and a short summary.
 
 ## Allowed Writes
 

@@ -16,8 +16,6 @@ Prepare a local TradingAgents source checkout for first run without hard-coding,
 
 ## Do Not Use When
 
-- The user only wants to run an already configured analysis; use `tradingagents-run`.
-- The user only wants LLM provider/model/endpoint diagnosis; use `tradingagents-llm`.
 - The user wants a package-only install guide.
 - The task requires source-code changes, new providers, or model catalog maintenance.
 
