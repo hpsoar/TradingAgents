@@ -27,6 +27,8 @@ Parse the exit code and the last line of stdout:
 | 1 | anything else | Blocked or incomplete | Go to Step 2 |
 | 2 | anything | ERROR | Report the error and stop |
 
+Also check stdout for the `Repo:` line. If it says `would clone ...`, the code is not on the machine yet — go to Step 2 to proceed with actual setup (which will clone first).
+
 If exit code is 1 and stderr contains `WARNING: Missing <ENV_VAR>`, report the env var name to the user and say "ready except credentials" — do NOT rerun setup.
 
 ### Step 2 — Gather user preferences
@@ -42,11 +44,15 @@ Ask the user (or read from conversation context):
 | Use virtual env? | no | If yes, path like `.venv` |
 | Install China extras? | no | `--china-extra` for A-share support |
 
+If the code is not on the machine yet (check-only said `would clone`), also ask:
+- Which git repo URL to clone from (default: `git@github.com:hpsoar/TradingAgents.git`)
+- Which ref to checkout (default: `v1.0`)
+
 Stop if the user does not provide a provider. Report `blocked`.
 
 ### Step 3 — Run setup script
 
-A — Basic setup:
+A — Basic setup (repo already checked out):
 
 ```bash
 python skills/tradingagents-setup/scripts/setup_tradingagents.py \
@@ -55,7 +61,16 @@ python skills/tradingagents-setup/scripts/setup_tradingagents.py \
   --quick-model <model>
 ```
 
-B — With virtual environment:
+B — From scratch (no code on machine yet):
+
+```bash
+python skills/tradingagents-setup/scripts/setup_tradingagents.py \
+  --repo-url git@github.com:hpsoar/TradingAgents.git \
+  --ref v1.0 \
+  --provider <provider>
+```
+
+C — With virtual environment:
 
 ```bash
 python skills/tradingagents-setup/scripts/setup_tradingagents.py \
@@ -63,7 +78,7 @@ python skills/tradingagents-setup/scripts/setup_tradingagents.py \
   --provider <provider>
 ```
 
-C — With China extras:
+D — With China extras:
 
 ```bash
 python skills/tradingagents-setup/scripts/setup_tradingagents.py \
@@ -71,7 +86,7 @@ python skills/tradingagents-setup/scripts/setup_tradingagents.py \
   --provider <provider>
 ```
 
-D — Custom language and custom data dirs:
+E — Custom language and custom data dirs:
 
 ```bash
 python skills/tradingagents-setup/scripts/setup_tradingagents.py \
@@ -81,6 +96,16 @@ python skills/tradingagents-setup/scripts/setup_tradingagents.py \
 
 ### Step 4 — Parse the output
 
+Look for the `Repo:` line in stdout:
+
+| Repo: line | Meaning |
+|---|---|
+| `Repo: existing checkout` | Code already on disk |
+| `Repo: cloned ... to /home/user/.tradingagents/source/TradingAgents` | Freshly cloned |
+| `Repo: would clone ...` (check-only) | Code not on disk, clone planned |
+
+Then check the final result:
+
 | stdout or stderr pattern | Meaning | Action |
 |---|---|---|
 | `Setup check passed.` | Success | Go to Step 5 |
@@ -88,6 +113,8 @@ python skills/tradingagents-setup/scripts/setup_tradingagents.py \
 | `ERROR: *` | Blocked | Report the exact error, stop |
 
 On any `ERROR`, report the full error line and stop. Do not retry.
+
+If the repo was freshly cloned to `~/.tradingagents/source/TradingAgents`, subsequent skills (run, config) must use that directory — the agent should `cd` there or pass it as context.
 
 ### Step 5 — Report status
 
@@ -109,16 +136,17 @@ If status is `ready`, the user can now run analysis. If `ready except credential
 
 - `.env` in the project root — only known `TRADINGAGENTS_*` settings and empty credential placeholders.
 - `~/.tradingagents/` — cache, logs, memory directories.
+- `~/.tradingagents/source/TradingAgents` — git clone when no checkout exists.
 - Virtual environment at the requested path.
 - Editable pip install of the project.
 
-Never write real API key values. Never clone the repo (it must already be checked out).
+Never write real API key values.
 
 ## Stop Conditions
 
 - Python < 3.10.
 - pip install fails with network or permission error.
-- Project root cannot be detected (no `pyproject.toml` with `tradingagents/`).
+- git clone fails (bad URL, no network, no auth).
 - User refuses to choose a provider.
 
 ## References

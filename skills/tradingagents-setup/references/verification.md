@@ -21,6 +21,11 @@ python -m cli.main --help
 python -m extensions.run.cli --help
 ```
 
+### Confirm repo location
+```bash
+test -d ~/.tradingagents/source/TradingAgents && echo "repo found"
+```
+
 ### Config and data directories
 ```bash
 test -f .env && echo ".env exists"

@@ -11,6 +11,10 @@ import sys
 from pathlib import Path
 
 
+DEFAULT_REPO_URL = "git@github.com:hpsoar/TradingAgents.git"
+DEFAULT_REPO_REF = "v1.0"
+DEFAULT_CLONE_DIR = Path.home() / ".tradingagents" / "source" / "TradingAgents"
+
 PROVIDER_KEYS = {
     "openai": "OPENAI_API_KEY",
     "google": "GOOGLE_API_KEY",
@@ -74,17 +78,29 @@ def is_project_root(path: Path) -> bool:
     return (path / "pyproject.toml").exists() and (path / "tradingagents").is_dir()
 
 
-def find_project_root() -> Path:
-    """Walk up from cwd or script dir to find the project root."""
-    candidates = [Path.cwd(), Path(__file__).resolve().parent.parent.parent.parent]
+def find_project_root(args: argparse.Namespace) -> tuple[Path, bool, str]:
+    """Find or clone the TradingAgents project root.
+
+    Returns (project_root, is_local, action_description).
+    """
+    candidates = [
+        Path.cwd().resolve(),
+        Path(__file__).resolve().parent.parent.parent.parent.resolve(),
+        DEFAULT_CLONE_DIR.resolve(),
+    ]
     for c in candidates:
-        resolved = c.resolve()
-        if is_project_root(resolved):
-            return resolved
-    raise RuntimeError(
-        "Could not find TradingAgents project root. "
-        "Run this script from the project directory or a subdirectory of it."
-    )
+        if is_project_root(c):
+            return c, True, "existing checkout"
+
+    if args.check_only:
+        return DEFAULT_CLONE_DIR, False, f"would clone {args.repo_url} @ {args.ref} to {DEFAULT_CLONE_DIR}"
+
+    project_dir = DEFAULT_CLONE_DIR
+    project_dir.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.check_call(["git", "clone", args.repo_url, str(project_dir)])
+    if args.ref:
+        subprocess.check_call(["git", "-C", str(project_dir), "checkout", args.ref])
+    return project_dir, True, f"cloned {args.repo_url} @ {args.ref} to {project_dir}"
 
 
 def parse_env(path: Path) -> dict[str, str]:
@@ -252,13 +268,15 @@ def main() -> int:
     parser.add_argument("--china-extra", action="store_true", help="Install China market dependencies.")
     parser.add_argument("--venv", help="Create/use virtual environment at this path.")
     parser.add_argument("--upgrade-pip", action="store_true", help="Upgrade pip before install.")
+    parser.add_argument("--repo-url", default=DEFAULT_REPO_URL, help="Repository URL to clone when no checkout exists.")
+    parser.add_argument("--ref", default=DEFAULT_REPO_REF, help="Branch/tag/commit to checkout after clone.")
     parser.add_argument("--check-only", action="store_true", help="Only check readiness, no writes.")
     args = parser.parse_args()
 
     try:
-        project_root = find_project_root()
-    except RuntimeError as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
+        project_root, is_local, repo_action = find_project_root(args)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        print(f"ERROR: Repo clone failed: {exc}", file=sys.stderr)
         return 2
 
     if sys.version_info < (3, 10):
@@ -299,6 +317,7 @@ def main() -> int:
     import_check = import_status(python, modules)
 
     print(f"Project root: {project_root}")
+    print(f"Repo: {repo_action}")
     print(f"Python: {sys.version.split()[0]}")
     print(f"Setup Python: {python}")
     print(f"Install: {install_result}")
