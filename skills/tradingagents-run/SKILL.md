@@ -10,7 +10,7 @@ Execute TradingAgents core analysis and return a trading decision.
 
 ## Prerequisites
 
-`tradingagents-setup` must have been run successfully before using this skill. If not, route the user to setup first.
+`tradingagents-setup` must have completed successfully before using this skill.
 
 ## Decision Tree
 
@@ -43,22 +43,29 @@ Optional (use defaults if not specified):
 
 Stop and do not proceed if symbol or analysis_date is missing.
 
-### Step 3 — Check environment readiness
+### Step 3 — Verify setup is complete
+
+Check the stamp file and module import:
 
 ```bash
-python skills/tradingagents-setup/scripts/setup_tradingagents.py --check-only
+test -f ~/.tradingagents/.setup_done && echo "STAMP_OK" || echo "STAMP_MISSING"
 ```
 
-| Exit code | Meaning | Action |
-|---|---|---|
-| 0 | Ready | Continue |
-| 1 with `Setup check passed.` | Credentials missing | Warn user, continue |
-| 1 with other output | Not ready | Route to `tradingagents-setup`, stop |
-| 2 | Error | Stop, report error |
+If `STAMP_MISSING`, tell the user setup has not been completed and route to `tradingagents-setup`. Stop.
+
+If `STAMP_OK`, read the project root from the stamp and verify the module:
+
+```bash
+PROJECT_DIR=$(cat ~/.tradingagents/.setup_done)
+cd "$PROJECT_DIR"
+python -c "import tradingagents; print('IMPORT_OK')" 2>&1
+```
+
+If import fails, report that setup is broken and route to `tradingagents-setup`. Stop.
+
+If both pass, the project root is `$PROJECT_DIR`. All subsequent commands run from there.
 
 ### Step 4 — Confirm with user
-
-Print the planned analysis and ask for confirmation:
 
 ```text
 Planned analysis:
@@ -67,7 +74,6 @@ Planned analysis:
   Analysts: market, social, news, fundamentals
   Depth: 1
   Language: English
-  Provider: openai
 
 This will call LLM APIs and consume tokens. Proceed? (yes/no)
 ```
@@ -104,7 +110,7 @@ Rules:
 - `symbol` — uppercase it
 - `analysts` — if user said "skip news", omit it; if user said "only market", use `["market"]`
 - `research_depth` — clamp to 1-10
-- `output_dir` — must be an absolute or relative path; write full path in the JSON
+- `output_dir` — must be an absolute or relative path from the project root
 
 ### Step 6 — Run the analysis
 
@@ -114,22 +120,16 @@ python -m extensions.run.cli run \
   --result-file runs/nvda-2024-05-10/result.json 2>&1
 ```
 
-Capture the full output (stdout + stderr).
-
 | Exit code | stderr pattern | Meaning | Action |
 |---|---|---|---|
 | 0 | `Result written to: ...` | Success | Go to Step 7 |
 | 1 | `validation_error:` | Bad inputs | Report the error, stop |
-| 1 | `configuration_error:` | Credential/model issue | Route to config skill, stop |
+| 1 | `configuration_error:` | Credential/model issue | Route to `tradingagents-config`, stop |
 | 1 | `data_unavailable:` | Vendor/ticker issue | Report the error, stop |
 | 1 | `model_error:` | LLM call failed | Report the error, stop |
 | 1 | `INTERNAL_ERROR:` | Bug | Report the error, stop |
 
-For any error, read `result.json` to extract the structured error details.
-
 ### Step 7 — Read and report results
-
-Read the result file:
 
 ```bash
 cat runs/nvda-2024-05-10/result.json
@@ -143,30 +143,26 @@ Symbol: NVDA
 Analysis date: 2024-05-10
 Decision: strong_buy | buy | hold | sell | strong_sell
 Result file: runs/nvda-2024-05-10/result.json
-Summary: <2-3 sentence summary of the analysis_summary fields>
+Summary: <2-3 sentences>
 Next step:
 ```
 
-If this was a batch, repeat Steps 5-7 for each ticker and report each separately.
+For batches, repeat Steps 5-7 per ticker, reporting each separately.
 
 ### Step 8 — Review past results
 
-When the user asks to review past results:
-
 ```bash
-ls runs/ 2>/dev/null || echo "no runs/ directory"
+ls ~/.tradingagents/source/TradingAgents/runs/ 2>/dev/null || echo "no runs"
 ```
 
-If the user specifies a ticker or date, find the matching subdirectory and read its `result.json`. If they don't specify, list all available run directories.
-
-Read the result file(s) and report:
+If user specifies a ticker/date, read that `result.json`. Otherwise list all available.
 
 ```
 Run status: success | <error_code>
 Symbol: NVDA
 Analysis date: 2024-05-10
 Decision: buy
-Result file: runs/nvda-2024-05-10/result.json
+Result file: ~/.tradingagents/source/TradingAgents/runs/nvda-2024-05-10/result.json
 ```
 
 ## Allowed Writes
@@ -181,9 +177,8 @@ Do NOT write to `.env`, source code, model catalogs, or credentials.
 - `symbol` contains `/`, `..`, or whitespace.
 - `analysis_date` is after today.
 - `analysts` contains a name not in `market`, `social`, `news`, `fundamentals`.
+- Setup stamp is missing or module import fails — route to setup.
 - User has not approved API call.
-- Setup check reports blocked.
-- `output_dir` parent does not exist and cannot be created.
 
 ## References
 

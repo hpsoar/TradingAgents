@@ -14,6 +14,7 @@ from pathlib import Path
 DEFAULT_REPO_URL = "git@github.com:hpsoar/TradingAgents.git"
 DEFAULT_REPO_REF = "v1.0"
 DEFAULT_CLONE_DIR = Path.home() / ".tradingagents" / "source" / "TradingAgents"
+SETUP_DONE_STAMP = Path.home() / ".tradingagents" / ".setup_done"
 
 PROVIDER_KEYS = {
     "openai": "OPENAI_API_KEY",
@@ -333,6 +334,8 @@ def main() -> int:
     if import_check != "ok":
         print("WARNING: tradingagents module is not importable.", file=sys.stderr)
         return 1
+    if not args.check_only:
+        SETUP_DONE_STAMP.write_text(str(project_root) + "\n", encoding="utf-8")
     print("Setup check passed.")
     return 0
 

@@ -1,30 +1,43 @@
 ---
 name: tradingagents-config
-description: "Change LLM provider, deep/quick model, backend URL, output language, or sampling temperature for TradingAgents by editing .env. Use when: the user says 'switch to <provider>', 'use <model>', 'change language', 'configure endpoint', 'change settings', or another skill reports a configuration error. Do NOT use for initial setup — route first-time installation to tradingagents-setup."
-allowed-tools: Bash(cat *), Bash(grep *), Bash(python *), Bash(test *)
+description: "Change LLM provider, deep/quick model, endpoint, output language, or temperature for TradingAgents. Use when: the user says 'switch to <provider>', 'use <model>', 'change language', 'configure endpoint', 'change settings'; or tradingagents-run reports a configuration_error. Do NOT use for initial setup — route first-time installation to tradingagents-setup."
+allowed-tools: Bash(cat *), Bash(grep *), Bash(test *), Bash(echo *), Bash(sed *)
 ---
 
 # TradingAgents Config
 
-Change runtime configuration by editing `.env`.
+Change runtime configuration by editing `.env` in the setup project root.
+
+## Prerequisites
+
+`tradingagents-setup` must have completed successfully.
 
 ## Decision Tree
 
-### Step 1 — Check that .env exists
+### Step 1 — Verify setup is complete
 
 ```bash
-test -f .env && echo "EXISTS" || echo "MISSING"
+test -f ~/.tradingagents/.setup_done && echo "STAMP_OK" || echo "STAMP_MISSING"
+PROJECT_DIR=$(cat ~/.tradingagents/.setup_done 2>/dev/null)
 ```
 
-If `.env` is missing, route to `tradingagents-setup` and stop.
+If `STAMP_MISSING` or `PROJECT_DIR` is empty, route to `tradingagents-setup` and stop.
+
+Read the project root from the stamp. All subsequent commands run from `$PROJECT_DIR`.
+
+```bash
+test -f "$PROJECT_DIR/.env" && echo "ENV_EXISTS" || echo "ENV_MISSING"
+```
+
+If `.env` is missing, route to `tradingagents-setup` (it creates the .env from template).
 
 ### Step 2 — Read current values
 
 ```bash
-cat .env
+cat "$PROJECT_DIR/.env"
 ```
 
-Extract these values (they may be commented out):
+Extract these (they may be commented out):
 
 | Key | Example |
 |---|---|
@@ -38,7 +51,7 @@ Extract these values (they may be commented out):
 
 For credential env vars, report only `present` / `missing` — never display the value.
 
-### Step 3 — Validate the requested changes
+### Step 3 — Validate requested changes
 
 Supported providers (exact spelling):
 
@@ -48,58 +61,50 @@ qwen, qwen-cn, glm, glm-cn, minimax, minimax-cn,
 openrouter, ollama
 ```
 
-Stop and report `invalid provider` if the user asks for a provider not in this list.
+Stop if user asks for a provider not in this list.
 
-For model names: accept any string. Do not validate against a catalog — the TradingAgents CLI handles model selection.
+For model names: accept any string (TradingAgents CLI handles model selection).
 
-For `backend_url`: accept any `http://` or `https://` URL. Reject invalid URLs.
+For `backend_url`: accept any `http://` or `https://` URL.
 
-For `output_language`: accept `English` or `Chinese`. Reject anything else.
+For `output_language`: accept `English` or `Chinese` only.
 
-For `temperature`: accept a float string like `0.0`, `0.5`, `1.0`. Reject non-numeric values.
+For `temperature`: accept a float string like `0.0`, `0.5`, `1.0`.
 
 ### Step 4 — Apply changes
 
-Use the setup script to apply changes:
+Use `sed` to update or uncomment specific keys in `.env`:
 
 ```bash
-python skills/tradingagents-setup/scripts/setup_tradingagents.py \
-  --provider <new_provider> \
-  --deep-model <new_model> \
-  --quick-model <new_model>
+# Set or replace TRADINGAGENTS_LLM_PROVIDER
+sed -i 's/^#\?TRADINGAGENTS_LLM_PROVIDER=.*/TRADINGAGENTS_LLM_PROVIDER=openai/' "$PROJECT_DIR/.env"
 ```
 
-For targeted changes, pass only the flags the user asked for:
+Pattern for each possible change:
 
-| Change | Flag |
+| Key | sed pattern |
 |---|---|
-| Change provider | `--provider <name>` |
-| Change deep model | `--deep-model <name>` |
-| Change quick model | `--quick-model <name>` |
-| Change backend URL | `--backend-url <url>` |
-| Change language | `--output-language <lang>` |
+| `TRADINGAGENTS_LLM_PROVIDER` | `s/^#\?TRADINGAGENTS_LLM_PROVIDER=.*/TRADINGAGENTS_LLM_PROVIDER=<value>/` |
+| `TRADINGAGENTS_DEEP_THINK_LLM` | `s/^#\?TRADINGAGENTS_DEEP_THINK_LLM=.*/TRADINGAGENTS_DEEP_THINK_LLM=<value>/` |
+| `TRADINGAGENTS_QUICK_THINK_LLM` | `s/^#\?TRADINGAGENTS_QUICK_THINK_LLM=.*/TRADINGAGENTS_QUICK_THINK_LLM=<value>/` |
+| `TRADINGAGENTS_LLM_BACKEND_URL` | `s/^#\?TRADINGAGENTS_LLM_BACKEND_URL=.*/TRADINGAGENTS_LLM_BACKEND_URL=<url>/` |
+| `TRADINGAGENTS_OUTPUT_LANGUAGE` | `s/^#\?TRADINGAGENTS_OUTPUT_LANGUAGE=.*/TRADINGAGENTS_OUTPUT_LANGUAGE=<lang>/` |
+| `TRADINGAGENTS_TEMPERATURE` | `s/^#\?TRADINGAGENTS_TEMPERATURE=.*/TRADINGAGENTS_TEMPERATURE=<value>/` |
+| `OLLAMA_BASE_URL` | `s/^#\?OLLAMA_BASE_URL=.*/OLLAMA_BASE_URL=<url>/` |
 
-For Ollama endpoint changes, use:
+If a key does not exist at all in the file (commented or not), append it.
 
-```bash
-python skills/tradingagents-setup/scripts/setup_tradingagents.py \
-  --provider ollama \
-  --backend-url http://ollama-host:11434/v1
-```
-
-### Step 5 — Verify changes
-
-Read `.env` again and confirm the changed values match:
+### Step 5 — Verify
 
 ```bash
-grep -E "^(TRADINGAGENTS_|OLLAMA_)" .env
+grep -E "^(TRADINGAGENTS_|OLLAMA_)" "$PROJECT_DIR/.env"
 ```
 
-If values do not match, report the discrepancy and stop.
+Confirm changed values match. If not, report discrepancy and stop.
 
 ### Step 6 — Check credentials
 
-Map provider to required credential:
+Map provider to credential:
 
 | Provider | Env var |
 |---|---|
@@ -116,20 +121,19 @@ Map provider to required credential:
 | minimax | `MINIMAX_API_KEY` |
 | minimax-cn | `MINIMAX_CN_API_KEY` |
 | openrouter | `OPENROUTER_API_KEY` |
-| ollama | (none required) |
-
-Check if the env var is set in `.env` or the process environment:
+| ollama | (none) |
 
 ```bash
-grep "^<ENV_VAR>=" .env
+grep "^<ENV_VAR>=" "$PROJECT_DIR/.env"
 ```
 
-If missing, report `Key status: missing` and tell the user to set it. Do NOT write the key value.
+If missing, report `Key status: missing`. Do NOT write the key value.
 
 ### Step 7 — Report
 
-```text
+```
 Config status: updated | blocked | unchanged
+Project dir: /home/user/.tradingagents/source/TradingAgents
 Provider: openai
 Deep model: gpt-5.5
 Quick model: gpt-5.4-mini
@@ -145,17 +149,17 @@ Next step: Use tradingagents-run to run analysis.
 
 ## Allowed Writes
 
-- `.env` entries for known `TRADINGAGENTS_*` settings and `OLLAMA_BASE_URL`.
+- `.env` in the project root — only known `TRADINGAGENTS_*` settings and `OLLAMA_BASE_URL`.
 - Empty credential placeholders (e.g., `OPENAI_API_KEY=`).
 
-Never write real API key values received from the user in chat. Never modify source code, model catalogs, provider clients, or test files.
+Never write real API key values. Never modify source code, model catalogs, or test files.
 
 ## Stop Conditions
 
+- Setup stamp is missing — route to setup first.
 - `.env` does not exist — route to setup first.
-- Provider is not in the supported list.
-- User provides a real API key in chat — tell them to set it in their environment or .env locally.
-- User asks to add a new provider that isn't supported.
+- Provider not in supported list.
+- User provides a real API key in chat — tell them to set it locally.
 - Requested output language is not English or Chinese.
 
 ## References

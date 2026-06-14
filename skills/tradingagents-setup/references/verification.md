@@ -1,6 +1,14 @@
 # Verification
 
-## Priority: use the setup script
+## Priority: check the setup stamp
+
+```bash
+test -f ~/.tradingagents/.setup_done && echo "stamp ok" || echo "stamp missing"
+PROJECT_DIR=$(cat ~/.tradingagents/.setup_done)
+python -c "import tradingagents; print('import ok')"
+```
+
+## Alternative: use the setup script
 
 ```bash
 python skills/tradingagents-setup/scripts/setup_tradingagents.py --check-only

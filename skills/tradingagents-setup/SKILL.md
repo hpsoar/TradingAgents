@@ -116,11 +116,14 @@ On any `ERROR`, report the full error line and stop. Do not retry.
 
 If the repo was freshly cloned to `~/.tradingagents/source/TradingAgents`, subsequent skills (run, config) must use that directory — the agent should `cd` there or pass it as context.
 
+On success, setup stamps `~/.tradingagents/.setup_done` with the project root path. This stamp is how `tradingagents-run` and `tradingagents-config` verify setup is complete.
+
 ### Step 5 — Report status
 
 ```text
 Setup status: ready | ready except credentials | blocked
-Project root: /path/to/TradingAgents
+Project root: /home/user/.tradingagents/source/TradingAgents
+Setup stamp: ~/.tradingagents/.setup_done (written)
 Python: 3.12
 Install: editable install (.)
 Import tradingagents: ok
