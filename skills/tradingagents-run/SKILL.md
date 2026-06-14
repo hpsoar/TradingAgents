@@ -24,14 +24,24 @@ Execute TradingAgents core analysis and return a trading decision.
 
 ### Step 2 — Collect required inputs
 
-For every analysis, the user MUST provide:
-- `symbol` — ticker symbol. Reject values containing `/`, `..`, or whitespace.
+Every analysis needs a `symbol`. Build it from what the user says:
 
-Ask the user if not already provided:
-- `analysis_date` — `YYYY-MM-DD`. Reject dates after today. If user says "yesterday" or "last week", compute the date.
-- `output_dir` — where to write files. If user does not specify, use `runs/{symbol}-{analysis_date}`.
+| User says | Action |
+|---|---|
+| `NVDA`, `600104.SH`, `0700.HK` | Use directly. Do not ask for confirmation. |
+| "上汽集团", "Apple", "腾讯" | Search to resolve the ticker. If unique match found, accept it — do not ask for confirmation. If ambiguous, ask user to clarify. |
+| "帮我看看" | Ask the user which company/ticker. Once resolved, use directly — do not ask for confirmation. |
 
-Optional (use defaults if not specified):
+Reject values containing `/`, `..`, or whitespace.
+
+Determine `analysis_date`:
+- If user provides a date, use it. Reject dates after today.
+- If user says "yesterday" or "last week", compute the date.
+- If not provided at all, default to `$(date +%Y-%m-%d)`. **Do not ask.**
+
+Determine `output_dir` — where to write files. If user does not specify, use `runs/{symbol}-{analysis_date}`.
+
+Optional fields (use defaults if not specified):
 | Field | Default | Notes |
 |---|---|---|
 | `asset_type` | `stock` | Use `crypto` for BTC-USD, ETH-USD etc. |
@@ -41,7 +51,7 @@ Optional (use defaults if not specified):
 | `task_id` | `{symbol}-{analysis_date}` | Auto-generated, override only if user provides one |
 | `checkpoint_enabled` | false | Set true for long-running analyses that might crash |
 
-Stop and do not proceed if symbol or analysis_date is missing.
+Stop and do not proceed if `symbol` cannot be resolved.
 
 ### Step 3 — Verify setup is complete
 
