@@ -75,7 +75,18 @@ class Propagator:
             callbacks: Optional list of callback handlers for tool execution tracking.
                        Note: LLM callbacks are handled separately via LLM constructor.
         """
-        config = {"recursion_limit": self.max_recur_limit}
+        config = {
+            "recursion_limit": self.max_recur_limit,
+            # Run tool calls sequentially (max_concurrency=1) instead of
+            # LangGraph's default parallel execution via executor.map().
+            # Parallel data fetches are wasteful when multiple calls hit
+            # the same upstream service, and harmful when that service is
+            # geo-blocked (e.g. EastMoney's push2his endpoint from outside
+            # mainland China) — 8 concurrent connections all hang on the
+            # same blocked endpoint. Sequential execution lets each call
+            # fail fast and fall through to the next provider.
+            "max_concurrency": 1,
+        }
         if callbacks:
             config["callbacks"] = callbacks
         return {
