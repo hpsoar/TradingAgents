@@ -16,14 +16,14 @@ Query the append-only memory log of past trading decisions and reflections.
 
 ### Step 1 — Determine what the user wants
 
-| User says | Action |
+| User says | Script command |
 |---|---|
-| "show me all decisions", "历史记录", "past analyses" | List all entries |
-| "what did we decide on NVDA", "NVDA 之前的分析" | Filter entries for a specific ticker |
-| "show me pending entries", "pending" | Show entries not yet resolved with returns |
-| "show me reflections", "反思" | Show entries that have a REFLECTION section |
-| "give me past context for NVDA" | Get formatted context for prompt injection (same-ticker + cross-ticker lessons) |
-| "show recent failures" | Filter by rating (sell/strong_sell) |
+| "show me all decisions", "历史记录", "past analyses" | `list-all` |
+| "what did we decide on NVDA", "NVDA 之前的分析" | `filter-ticker NVDA` |
+| "show me pending entries", "pending" | `pending` |
+| "show me reflections", "反思" | `list-all` (then look for reflection=yes) |
+| "give me past context for NVDA" | `past-context NVDA` |
+| "show recent failures" | `list-all` (then filter by rating) |
 
 ### Step 2 — Verify setup
 
@@ -33,82 +33,46 @@ test -f ~/.tradingagents/.setup_done && echo "STAMP_OK" || echo "STAMP_MISSING"
 
 If `STAMP_MISSING`, route to `tradingagents-setup`. Stop.
 
-Read project root:
+If `STAMP_OK`, read project root:
+
 ```bash
 PROJECT_DIR=$(cat ~/.tradingagents/.setup_done 2>/dev/null)
 ```
 
 ### Step 3 — Query the memory log
 
+All commands run from the project root:
+
+```bash
+cd "$PROJECT_DIR"
+```
+
 **All entries — summary:**
 ```bash
-python -c "
-import sys, json
-sys.path.insert(0, '$PROJECT_DIR')
-from tradingagents.agents.utils.memory import TradingMemoryLog
-log = TradingMemoryLog()
-entries = log.load_entries()
-for e in entries:
-    tag = f\"[{e['date']} | {e['ticker']} | {e['rating']} | {'pending' if e['pending'] else (e['raw'] or 'n/a')}]\"
-    has_reflection = 'yes' if e.get('reflection') else 'no'
-    print(f'{tag}  reflection={has_reflection}')
-print(f'Total: {len(entries)} entries')
-"
+python skills/tradingagents-memory-review/scripts/review.py list-all
 ```
 
 **Filter by ticker:**
 ```bash
-python -c "
-import sys
-sys.path.insert(0, '$PROJECT_DIR')
-from tradingagents.agents.utils.memory import TradingMemoryLog
-log = TradingMemoryLog()
-for e in log.load_entries():
-    if e['ticker'] == 'NVDA':
-        print(f\"[{e['date']} | {e['rating']} | {'pending' if e['pending'] else e['raw']}]\")
-        print(f\"DECISION: {e['decision'][:200]}...\")
-        if e.get('reflection'):
-            print(f\"REFLECTION: {e['reflection']}\")
-        print()
-"
+python skills/tradingagents-memory-review/scripts/review.py filter-ticker NVDA
 ```
 
-**Pending entries:**
+**Pending entries (no outcome data yet):**
 ```bash
-python -c "
-import sys
-sys.path.insert(0, '$PROJECT_DIR')
-from tradingagents.agents.utils.memory import TradingMemoryLog
-log = TradingMemoryLog()
-pending = log.get_pending_entries()
-for e in pending:
-    print(f\"[{e['date']} | {e['ticker']} | {e['rating']} | pending]\")
-    print(f\"DECISION: {e['decision'][:300]}\")
-    print()
-print(f'Pending: {len(pending)} entries')
-"
+python skills/tradingagents-memory-review/scripts/review.py pending
 ```
 
 **Past context (formatted for prompt injection before running a new analysis):**
 ```bash
-python -c "
-import sys
-sys.path.insert(0, '$PROJECT_DIR')
-from tradingagents.agents.utils.memory import TradingMemoryLog
-log = TradingMemoryLog()
-ctx = log.get_past_context('NVDA', n_same=5, n_cross=3)
-print(ctx if ctx else 'No past context available.')
-"
+python skills/tradingagents-memory-review/scripts/review.py past-context NVDA 5 3
 ```
 
-**Raw file read (alternative when Python import fails):**
+**Raw file read (fallback when Python import fails):**
 ```bash
 cat ~/.tradingagents/memory/trading_memory.md 2>/dev/null || echo "Memory log not found."
 ```
 
 ### Step 4 — Report
-
-Format results clearly:
 
 ```
 Memory log: ~/.tradingagents/memory/trading_memory.md
@@ -135,7 +99,7 @@ None. This skill is read-only. Never modify the memory log file, `.env`, or sour
 
 - Setup stamp is missing — route to setup.
 - Memory log file does not exist (no analyses have been run yet) — report "No past decisions found."
-- Python `tradingagents` module import fails — route to setup.
+- `review.py` exits with MEMORY_IMPORT_FAILED — route to setup.
 
 ## References
 
