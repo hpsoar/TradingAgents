@@ -77,14 +77,11 @@ class Propagator:
         """
         config = {
             "recursion_limit": self.max_recur_limit,
-            # Run tool calls sequentially (max_concurrency=1) instead of
-            # LangGraph's default parallel execution via executor.map().
-            # Parallel data fetches are wasteful when multiple calls hit
-            # the same upstream service, and harmful when that service is
-            # geo-blocked (e.g. EastMoney's push2his endpoint from outside
-            # mainland China) — 8 concurrent connections all hang on the
-            # same blocked endpoint. Sequential execution lets each call
-            # fail fast and fall through to the next provider.
+            # Run up to 4 tool calls concurrently instead of LangGraph's
+            # default parallel execution for all calls via executor.map().
+            # A modest cap avoids flooding a single upstream service
+            # (e.g. EastMoney's push2his endpoint from outside mainland
+            # China) while still allowing reasonable parallelism.
             "max_concurrency": 4,
         }
         if callbacks:
