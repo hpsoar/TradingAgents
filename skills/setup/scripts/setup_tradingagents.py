@@ -36,10 +36,6 @@ PROVIDER_ALIASES = {
     "minimax_cn": "minimax-cn",
 }
 
-DEFAULT_REPO_URL = os.environ.get("TRADINGAGENTS_REPO_URL", "git@github.com:hpsoar/TradingAgents.git")
-DEFAULT_REPO_REF = os.environ.get("TRADINGAGENTS_REPO_REF", "v1.0")
-DEFAULT_PROJECT_DIR = Path.home() / ".tradingagents" / "source" / "TradingAgents"
-
 ENV_TEMPLATE = """# LLM Providers (set the one you use)
 OPENAI_API_KEY=
 GOOGLE_API_KEY=
@@ -74,34 +70,21 @@ ALPHA_VANTAGE_API_KEY=
 """
 
 
-def is_repo_checkout(path: Path) -> bool:
+def is_project_root(path: Path) -> bool:
     return (path / "pyproject.toml").exists() and (path / "tradingagents").is_dir()
 
 
-def ensure_repo_checkout(args: argparse.Namespace) -> tuple[Path, bool, str]:
-    if args.install == "package":
-        return (Path.home() / ".tradingagents" / "package-run").resolve(), False, "package-only project dir"
-
-    project_dir = DEFAULT_PROJECT_DIR.resolve()
-    if is_repo_checkout(project_dir):
-        return project_dir, True, "existing repo checkout"
-
-    if project_dir.exists() and any(project_dir.iterdir()):
-        raise RuntimeError(
-            f"{project_dir} exists but is not a TradingAgents repo checkout. "
-            "Move it aside or make it an empty directory before running setup again."
-        )
-
-    repo_url = args.repo_url or DEFAULT_REPO_URL
-    repo_ref = args.ref or DEFAULT_REPO_REF
-    if args.check_only:
-        return project_dir, True, f"would clone {repo_url} and checkout {repo_ref}"
-
-    project_dir.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.check_call(["git", "clone", repo_url, str(project_dir)])
-    if repo_ref:
-        subprocess.check_call(["git", "-C", str(project_dir), "checkout", repo_ref])
-    return project_dir, True, f"cloned {repo_url} and checked out {repo_ref}"
+def find_project_root() -> Path:
+    """Walk up from cwd or script dir to find the project root."""
+    candidates = [Path.cwd(), Path(__file__).resolve().parent.parent.parent.parent]
+    for c in candidates:
+        resolved = c.resolve()
+        if is_project_root(resolved):
+            return resolved
+    raise RuntimeError(
+        "Could not find TradingAgents project root. "
+        "Run this script from the project directory or a subdirectory of it."
+    )
 
 
 def parse_env(path: Path) -> dict[str, str]:
@@ -142,9 +125,9 @@ def upsert_env(path: Path, updates: dict[str, str]) -> None:
     path.write_text("\n".join(next_lines).rstrip() + "\n", encoding="utf-8")
 
 
-def ensure_env(repo_root: Path, updates: dict[str, str], check_only: bool) -> Path:
-    env_path = repo_root / ".env"
-    example_path = repo_root / ".env.example"
+def ensure_env(project_root: Path, updates: dict[str, str], check_only: bool) -> Path:
+    env_path = project_root / ".env"
+    example_path = project_root / ".env.example"
     if not env_path.exists() and not check_only:
         if example_path.exists():
             shutil.copyfile(example_path, env_path)
@@ -170,7 +153,7 @@ def ensure_directories(args: argparse.Namespace, check_only: bool) -> list[Path]
 def build_updates(args: argparse.Namespace) -> dict[str, str]:
     updates: dict[str, str] = {}
     if args.provider:
-        updates["TRADINGAGENTS_LLM_PROVIDER"] = canonical_provider(args.provider)
+        updates["TRADINGAGENTS_LLM_PROVIDER"] = _canonical_provider(args.provider)
     if args.deep_model:
         updates["TRADINGAGENTS_DEEP_THINK_LLM"] = args.deep_model
     if args.quick_model:
@@ -191,22 +174,22 @@ def build_updates(args: argparse.Namespace) -> dict[str, str]:
     return updates
 
 
+def _canonical_provider(provider: str) -> str:
+    return PROVIDER_ALIASES.get(provider, provider)
+
+
 def provider_key_status(provider: str | None, env_values: dict[str, str]) -> str | None:
     if not provider:
         return "No provider selected. Set TRADINGAGENTS_LLM_PROVIDER or pass --provider."
-    provider = canonical_provider(provider)
+    provider = _canonical_provider(provider)
     key = PROVIDER_KEYS.get(provider)
     if key is None:
         if provider == "ollama":
             return None
-        return f"Unknown provider '{provider}'. Known providers: {', '.join(sorted(PROVIDER_KEYS))}."
+        return f"Unknown provider '{provider}'. Known: {', '.join(sorted(PROVIDER_KEYS))}."
     if os.environ.get(key) or env_values.get(key):
         return None
     return f"Missing {key} for provider '{provider}'. Add it to .env or the process environment."
-
-
-def canonical_provider(provider: str) -> str:
-    return PROVIDER_ALIASES.get(provider, provider)
 
 
 def venv_python(venv_dir: Path) -> Path:
@@ -222,45 +205,23 @@ def ensure_venv(venv_dir: Path, check_only: bool) -> Path:
     return python
 
 
-def selected_python(args: argparse.Namespace) -> Path:
-    if args.venv:
-        return venv_python(Path(args.venv).expanduser())
-    return Path(sys.executable)
-
-
 def install_tradingagents(
-    args: argparse.Namespace,
-    project_dir: Path,
-    is_repo_checkout: bool,
+    project_root: Path,
     python: Path,
+    china_extra: bool,
+    upgrade_pip: bool,
+    check_only: bool,
 ) -> str:
-    mode = args.install
-    if mode == "auto":
-        if not is_repo_checkout:
-            raise RuntimeError(
-                "full project setup requires a TradingAgents repo checkout. "
-                "Use --install package only when you intentionally want package-only setup."
-            )
-        mode = "local"
-    if mode == "skip":
-        return "skipped"
-    if mode == "local" and not is_repo_checkout:
-        raise RuntimeError("local install requires a TradingAgents repo checkout; use --install package instead.")
-    if args.check_only:
-        return f"would install {mode} (check-only)"
+    if check_only:
+        extras = "[china]" if china_extra else ""
+        return f"would install .{extras} (check-only)"
 
-    if args.upgrade_pip:
+    if upgrade_pip:
         subprocess.check_call([str(python), "-m", "pip", "install", "--upgrade", "pip"])
 
-    if mode == "local":
-        spec = ".[china]" if args.china_extra else "."
-        command = [str(python), "-m", "pip", "install", "-e", spec]
-        subprocess.check_call(command, cwd=project_dir)
-        return f"local editable ({spec})"
-
-    spec = "tradingagents[china]" if args.china_extra else "tradingagents"
-    subprocess.check_call([str(python), "-m", "pip", "install", spec])
-    return f"package ({spec})"
+    spec = ".[china]" if china_extra else "."
+    subprocess.check_call([str(python), "-m", "pip", "install", "-e", spec], cwd=project_root)
+    return f"editable install ({spec})"
 
 
 def import_status(python: Path, modules: list[str]) -> str:
@@ -278,91 +239,82 @@ def import_status(python: Path, modules: list[str]) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Prepare and check a TradingAgents local setup.")
+    parser = argparse.ArgumentParser(description="Prepare a TradingAgents checkout for use.")
     provider_choices = sorted(set(PROVIDER_KEYS) | set(PROVIDER_ALIASES))
-    parser.add_argument("--provider", choices=provider_choices, help="LLM provider to configure.")
+    parser.add_argument("--provider", choices=provider_choices, help="Default LLM provider.")
     parser.add_argument("--deep-model", help="Model for deep-thinking agents.")
     parser.add_argument("--quick-model", help="Model for quick-thinking agents.")
     parser.add_argument("--backend-url", help="Provider backend URL or Ollama base URL.")
-    parser.add_argument("--output-language", help="Report output language, for example English or Chinese.")
+    parser.add_argument("--output-language", help="Report language, e.g. English or Chinese.")
     parser.add_argument("--cache-dir", help="Override TRADINGAGENTS_CACHE_DIR.")
     parser.add_argument("--results-dir", help="Override TRADINGAGENTS_RESULTS_DIR.")
     parser.add_argument("--memory-log", help="Override TRADINGAGENTS_MEMORY_LOG_PATH.")
-    parser.add_argument(
-        "--install",
-        choices=("auto", "local", "package", "skip"),
-        default="auto",
-        help="Install TradingAgents dependencies. auto requires a repo checkout and uses local editable install.",
-    )
-    parser.add_argument("--china-extra", action="store_true", help="Install the optional China market dependencies.")
-    parser.add_argument("--venv", help="Create/use this virtual environment for installation and import checks.")
-    parser.add_argument("--upgrade-pip", action="store_true", help="Upgrade pip before installing.")
-    parser.add_argument("--repo-url", help=f"Repository URL to clone when no checkout exists. Default: {DEFAULT_REPO_URL}")
-    parser.add_argument("--ref", help=f"Branch, tag, or commit to checkout after clone. Default: {DEFAULT_REPO_REF}")
-    parser.add_argument("--check-only", action="store_true", help="Report readiness without writing files.")
+    parser.add_argument("--china-extra", action="store_true", help="Install China market dependencies.")
+    parser.add_argument("--venv", help="Create/use virtual environment at this path.")
+    parser.add_argument("--upgrade-pip", action="store_true", help="Upgrade pip before install.")
+    parser.add_argument("--check-only", action="store_true", help="Only check readiness, no writes.")
     args = parser.parse_args()
 
     try:
-        project_dir, is_repo_checkout, repo_action = ensure_repo_checkout(args)
-    except (OSError, RuntimeError, subprocess.CalledProcessError) as exc:
-        print(f"ERROR: Repo checkout failed: {exc}", file=sys.stderr)
+        project_root = find_project_root()
+    except RuntimeError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
         return 2
+
     if sys.version_info < (3, 10):
-        print("ERROR: Python 3.10 or newer is required.", file=sys.stderr)
+        print("ERROR: Python 3.10+ required.", file=sys.stderr)
         return 2
-    if not args.check_only:
-        project_dir.mkdir(parents=True, exist_ok=True)
 
     if args.venv:
         python = ensure_venv(Path(args.venv).expanduser(), args.check_only)
     else:
-        python = selected_python(args)
+        python = Path(sys.executable)
     if not python.exists():
-        print(f"ERROR: Python executable does not exist: {python}", file=sys.stderr)
+        print(f"ERROR: Python not found: {python}", file=sys.stderr)
         return 2
 
     updates = build_updates(args)
-    env_path = ensure_env(project_dir, updates, args.check_only)
+    env_path = ensure_env(project_root, updates, args.check_only)
     directories = ensure_directories(args, args.check_only)
+
     try:
-        install_result = install_tradingagents(args, project_dir, is_repo_checkout, python)
-    except (OSError, RuntimeError, subprocess.CalledProcessError) as exc:
+        install_result = install_tradingagents(
+            project_root, python, args.china_extra, args.upgrade_pip, args.check_only,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
         print(f"ERROR: Install failed: {exc}", file=sys.stderr)
         return 2
-    env_values = parse_env(env_path)
-    provider = args.provider or env_values.get("TRADINGAGENTS_LLM_PROVIDER") or os.environ.get("TRADINGAGENTS_LLM_PROVIDER")
-    if provider:
-        provider = canonical_provider(provider)
-    warning = provider_key_status(provider, env_values)
-    planned_clone = args.check_only and repo_action.startswith("would clone ")
-    modules = ["tradingagents"]
-    if is_repo_checkout or args.install in ("auto", "local"):
-        modules.extend(["cli", "china_market"])
-    if planned_clone:
-        import_check = "not checked (repo would be cloned)"
-    else:
-        import_check = import_status(python, modules)
 
-    print(f"Project dir: {project_dir}")
-    repo_checkout_status = "planned" if planned_clone else ("yes" if is_repo_checkout else "no")
-    print(f"Repo checkout: {repo_checkout_status}")
-    print(f"Repo action: {repo_action}")
+    env_values = parse_env(env_path)
+    provider = (
+        args.provider
+        or env_values.get("TRADINGAGENTS_LLM_PROVIDER")
+        or os.environ.get("TRADINGAGENTS_LLM_PROVIDER")
+    )
+    if provider:
+        provider = _canonical_provider(provider)
+
+    warning = provider_key_status(provider, env_values)
+    modules = ["tradingagents"]
+    import_check = import_status(python, modules)
+
+    print(f"Project root: {project_root}")
     print(f"Python: {sys.version.split()[0]}")
     print(f"Setup Python: {python}")
     print(f"Install: {install_result}")
-    print(f"Import modules ({', '.join(modules)}): {import_check}")
+    print(f"Import tradingagents: {import_check}")
     print(f"Env file: {env_path} ({'exists' if env_path.exists() else 'missing'})")
-    for directory in directories:
-        print(f"Directory: {directory} ({'exists' if directory.exists() else 'missing'})")
+    for d in directories:
+        print(f"Directory: {d} ({'exists' if d.exists() else 'missing'})")
     if provider:
         print(f"Provider: {provider}")
     if warning:
         print(f"WARNING: {warning}", file=sys.stderr)
         return 1
-    if import_check != "ok" and not planned_clone:
-        print("WARNING: required TradingAgents modules are not importable in the selected Python environment.", file=sys.stderr)
+    if import_check != "ok":
+        print("WARNING: tradingagents module is not importable.", file=sys.stderr)
         return 1
-    print("TradingAgents setup check passed.")
+    print("Setup check passed.")
     return 0
 
 
