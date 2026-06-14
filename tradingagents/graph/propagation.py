@@ -85,7 +85,7 @@ class Propagator:
             # mainland China) — 8 concurrent connections all hang on the
             # same blocked endpoint. Sequential execution lets each call
             # fail fast and fall through to the next provider.
-            "max_concurrency": 1,
+            "max_concurrency": 4,
         }
         if callbacks:
             config["callbacks"] = callbacks
