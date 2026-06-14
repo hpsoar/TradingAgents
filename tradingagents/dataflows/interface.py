@@ -136,13 +136,20 @@ def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
     # Keep China market support isolated in the optional china_market package.
     # Non-A-share symbols never import or initialize China providers.
+    # If all China providers fail (network issues, geo-blocking, etc.), fall
+    # through to standard vendors (yfinance / alpha_vantage).
     try:
         from china_market.adapters.tradingagents_adapter import (
             should_handle as china_market_should_handle,
             route_method as china_market_route_method,
         )
         if china_market_should_handle(method, *args):
-            return china_market_route_method(method, *args, **kwargs)
+            try:
+                result = china_market_route_method(method, *args, **kwargs)
+                if "NO_DATA_AVAILABLE" not in result:
+                    return result
+            except Exception:
+                pass
     except ImportError:
         pass
 

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FutureTimeoutError
 from datetime import datetime, timedelta
 
+from china_market.config import get_config as _get_china_config
 from china_market.formatters import format_result
 from china_market.models import DataResult, SourceAttempt
 from china_market.providers.akshare_provider import AkShareProvider
@@ -17,12 +19,13 @@ from china_market.symbols import normalize_symbol
 class ChinaDataSourceManager:
     """Route A-share data requests to optional providers with fallback."""
 
-    def __init__(self, providers: Iterable[BaseChinaProvider] | None = None):
+    def __init__(self, providers: Iterable[BaseChinaProvider] | None = None, timeout: int | None = None):
         self.providers = list(providers) if providers is not None else [
             AkShareProvider(),
             TushareProvider(),
             BaoStockProvider(),
         ]
+        self._timeout = timeout if timeout is not None else _get_china_config().request_timeout
 
     def get_market_data(self, symbol: str, start_date: str, end_date: str) -> str:
         result = self._call_chain(
@@ -101,11 +104,24 @@ class ChinaDataSourceManager:
             if provider is None:
                 attempts.append(SourceAttempt(provider_name, "skipped", "provider not configured"))
                 continue
+            pool: ThreadPoolExecutor | None = None
             try:
-                result = getattr(provider, method_name)(symbol, *args)
+                pool = ThreadPoolExecutor(max_workers=1)
+                future = pool.submit(getattr(provider, method_name), symbol, *args)
+                result = future.result(timeout=self._timeout)
+            except _FutureTimeoutError:
+                attempts.append(SourceAttempt(provider.name, "timeout", f"timed out after {self._timeout}s"))
+                if pool is not None:
+                    pool.shutdown(wait=False)
+                continue
             except Exception as exc:
                 attempts.append(SourceAttempt(provider.name, "error", str(exc)))
+                if pool is not None:
+                    pool.shutdown(wait=False)
                 continue
+            finally:
+                if pool is not None:
+                    pool.shutdown(wait=False)
 
             attempts.append(SourceAttempt(provider.name, result.status, result.message))
             if result.usable:
