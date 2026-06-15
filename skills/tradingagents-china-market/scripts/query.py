@@ -28,7 +28,7 @@ def default_start() -> str:
     return (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
 
 
-def cmd_verify():
+def cmd_verify(args=None):
     print("CHINA_OK")
 
 

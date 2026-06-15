@@ -37,7 +37,7 @@ CATEGORIES = ["core_stock_apis", "technical_indicators", "fundamental_data", "ne
 VENDORS = ["yfinance", "alpha_vantage"]
 
 
-def cmd_show():
+def cmd_show(args=None):
     cfg = get_config()
     print("--- Category-level vendors (data_vendors) ---")
     for k in CATEGORIES:
@@ -88,7 +88,7 @@ def cmd_set_tool(args):
     cmd_show()
 
 
-def cmd_reset():
+def cmd_reset(args=None):
     set_config({
         "data_vendors": {cat: "yfinance" for cat in CATEGORIES},
         "tool_vendors": {},
@@ -118,7 +118,7 @@ def cmd_check_cred(args):
         print(f"{env_var}: cannot check (.env not found)")
 
 
-def cmd_verify():
+def cmd_verify(args=None):
     cmd_show()
 
 

@@ -32,7 +32,7 @@ except ImportError:
 log = TradingMemoryLog()
 
 
-def cmd_list_all():
+def cmd_list_all(args=None):
     entries = log.load_entries()
     for e in entries:
         outcome = "pending" if e["pending"] else (e["raw"] or "n/a")
@@ -54,7 +54,7 @@ def cmd_filter_ticker(args):
             print()
 
 
-def cmd_pending():
+def cmd_pending(args=None):
     pending = log.get_pending_entries()
     for e in pending:
         print(f"[{e['date']} | {e['ticker']} | {e['rating']} | pending]")
