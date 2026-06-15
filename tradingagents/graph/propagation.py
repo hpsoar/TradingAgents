@@ -77,11 +77,10 @@ class Propagator:
         """
         config = {
             "recursion_limit": self.max_recur_limit,
-            # Run up to 4 tool calls concurrently instead of LangGraph's
-            # default parallel execution for all calls via executor.map().
-            # A modest cap avoids flooding a single upstream service
-            # (e.g. EastMoney's push2his endpoint from outside mainland
-            # China) while still allowing reasonable parallelism.
+            # Cap tool parallelism at 4 instead of LangGraph's default
+            # (min(32, cpu+4)). High concurrency is wasteful when calls
+            # hit the same upstream and harmful when that upstream
+            # geo-blocks (e.g. EastMoney's push2his from outside China).
             "max_concurrency": 4,
         }
         if callbacks:
