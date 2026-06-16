@@ -48,6 +48,11 @@ def normalize_symbol(raw: str) -> NormalizedSymbol | None:
     if symbol.endswith(".HK") or symbol.endswith(".US"):
         return None
 
+    # Normalize Yahoo Finance .SS suffix (used by yfinance for Shanghai)
+    # to the canonical .SH exchange code used by Chinese data providers.
+    if symbol.endswith(".SS"):
+        symbol = symbol[:-3] + ".SH"
+
     prefixed = re.fullmatch(r"(SH|SZ)\.?(\d{6})", symbol)
     if prefixed:
         exchange, code = prefixed.groups()
